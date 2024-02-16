@@ -1,11 +1,18 @@
 import {assert} from '../utils.js';
 import Tree from './baseTree.js';
 
-const BTree = (m = 3, position = 'greedy') => {
-    assert([
+export
+const BTreeEnums = {
+    position: [
         'greedy',
         'random',
-    ].includes(position));
+    ],
+};
+
+export
+const makeBTree = (m = 3, position = 'greedy') => {
+    assert(Number.isInteger(m) && m >= 3);
+    assert(BTreeEnums.position.includes(position));
     const max = m, min = Math.ceil(m / 2);
     return (
 class BTree extends Tree {
@@ -103,7 +110,14 @@ class BTree extends Tree {
     );
 };
 
-export const $23Tree = position => BTree(3, position);
-export const $234Tree = position => BTree(4, position);
+export
+const make23Tree = position => makeBTree(3, position);
+export
+const make234Tree = position => makeBTree(4, position);
 
-export default BTree;
+export
+const $23Tree = make23Tree();
+export
+const $234Tree = make234Tree();
+
+export default makeBTree();

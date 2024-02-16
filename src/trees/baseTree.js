@@ -1,3 +1,5 @@
+import {range} from '../utils.js';
+
 class Tree {
     constructor(parent = null, children = [], info = {}) {
         this.parent = parent;
@@ -11,28 +13,40 @@ class Tree {
         }
         return parent.getRoot();
     }
-}
 
-export const testTree = (TreeType, n = 10) => {
-    const print = (tree, depth = 0) => {
-        if (tree === null) {
+    get isLeaf() {
+        return this.children.filter(Boolean).length === 0;
+    }
+    * getLeaves(acknowledgingComplexity = false) {
+        if (!acknowledgingComplexity) console.warn('O(n)-time operation');
+        if (this.isLeaf) {
+            yield this;
             return;
         }
-        if (depth === 0) {
-            console.info(tree);
+        for (const child of this.children) {
+            yield * child.getLeaves(true);
         }
-        console.log(Array(depth).fill('--').join('') + (tree.recycle || tree.perfect || tree.children.length));
-        for (const child of tree.children) {
-            print(child, depth + 1);
+    }
+
+    static init(n) {
+        const leafInit = new this();
+        let root = leafInit;
+        for (const _ of range(1, n)) {
+            root = root.add(new this(), leafInit);
+        }
+        return root;
+    }
+
+    print(hasNextList = [], Width = 2) {
+        console.log([
+            ...hasNextList.slice(0, -1).map(hasNext => (hasNext ? '│' : ' ') + Array(Width-1).fill(' ').join('')),
+            ...hasNextList.slice(-1).map(hasNextSelf => (hasNextSelf ? '├' : '└') + Array(Width-1).fill('─').join('')),
+            this.children.length > 0 ? '┮' : '╼',
+        ].join(''), this.data);
+        for (const [i, child] of this.children.entries()) {
+            child.print(hasNextList.concat(i < this.children.length-1), Width);
         }
     };
-    let tree = new TreeType();
-    const leaf = tree;
-    print(tree);
-    for (let i = 0; i < n; ++i) {
-        tree = tree.add(undefined, leaf);
-        print(tree);
-    }
-};
+}
 
 export default Tree;

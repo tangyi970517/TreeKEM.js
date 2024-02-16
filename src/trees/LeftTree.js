@@ -1,15 +1,23 @@
 import {assert} from '../utils.js';
 import Tree from './baseTree.js';
 
-const LeftTree = (position = 'greedy', truncate = 'truncate') => {
-    assert([
+export
+const LeftTreeEnums = {
+    position: [
         'greedy',
         'random',
         'append',
-    ].includes(position) && [
+    ],
+    truncate: [
         'truncate',
         'keep',
-    ].includes(truncate));
+    ],
+};
+
+export
+const makeLeftTree = (position = 'greedy', truncate = 'truncate') => {
+    assert(LeftTreeEnums.position.includes(position));
+    assert(LeftTreeEnums.truncate.includes(truncate));
     return (
 class LeftTree extends Tree { // left-balanced binary tree: left child is perfect binary tree, right child is left-balanced binary tree, and height of left child is no less than height of right child (i.e. [#leaf in left child] = 2^floor(log2[#leaf]))
     constructor(parent, children = [null, null], info) {
@@ -136,4 +144,4 @@ class LeftTree extends Tree { // left-balanced binary tree: left child is perfec
     );
 };
 
-export default LeftTree;
+export default makeLeftTree();

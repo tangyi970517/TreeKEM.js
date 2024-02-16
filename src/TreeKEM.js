@@ -1,23 +1,37 @@
-import {assert} from "./utils.js";
+import {assert, range} from './utils.js';
 
-const TreeKEM = (TreeType, add = 'async', remove = 'remover', update = 'LCA', merge = 'blank', split = 'blank') => {
-    assert([
+export
+const TreeKEMEnums = {
+    addStrategy: [
         'async',
         'sync',
-    ].includes(add) && [
+    ],
+    removeStrategy: [
         'remover',
         'remover-before',
         'removee',
-    ].includes(remove) && [
+    ],
+    updateStrategy: [
         'LCA',
         'root',
-    ].includes(update) && [
+    ],
+    mergeStrategy: [
         'blank',
         'keep',
-    ].includes(merge) && [
+    ],
+    splitStrategy: [
         'blank',
         'keep',
-    ].includes(split));
+    ],
+};
+
+export
+const makeTreeKEM = (TreeType, add = 'async', remove = 'remover', update = 'LCA', merge = 'blank', split = 'blank') => {
+    assert(TreeKEMEnums.addStrategy.includes(add));
+    assert(TreeKEMEnums.removeStrategy.includes(remove));
+    assert(TreeKEMEnums.updateStrategy.includes(update));
+    assert(TreeKEMEnums.mergeStrategy.includes(merge));
+    assert(TreeKEMEnums.splitStrategy.includes(split));
     return (
 class TreeKEM {
     constructor() {
@@ -25,7 +39,9 @@ class TreeKEM {
         this.users = [this.root];
     }
     init(n) {
-        throw new Error('not implemented');
+        for (const _ of range(1, n)) {
+            this.add(0, this.users.length);
+        }
     }
     add(a, b) {
         assert(a in this.users && b === this.users.length);
@@ -242,31 +258,4 @@ class TreeKEM {
     );
 };
 
-const testTreeKEM = (TreeType, add, remove, update, merge, n = 10) => {
-    const print = (tree, depth = 0) => {
-        if (tree === null) {
-            return;
-        }
-        if (depth === 0) {
-            console.info(tree);
-        }
-        console.log(Array(depth).fill('--').join('') + (tree.counts || tree.children.map(child => tree.secret === true || tree.secret.includes(child))));
-        for (const child of tree.children) {
-            print(child, depth + 1);
-        }
-    };
-    const TreeKEMType = TreeKEM(TreeType, add, remove, update, merge);
-    const tree = new TreeKEMType();
-    print(tree.root);
-    for (let i = 0; i < n; ++i) {
-        tree.add(0);
-        print(tree.root);
-    }
-};
-
-// testTreeKEM(LeftTree(), 'sync');
-// testTreeKEM($23Tree(), 'sync');
-// testTreeKEM($234Tree(), 'sync');
-
-export default TreeKEM;
-export {testTreeKEM};
+export default makeTreeKEM();
