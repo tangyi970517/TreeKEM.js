@@ -1,258 +1,165 @@
-import {assert, range} from './utils.js';
+import {assert, sum} from './utils.js';
 
-export
-const TreeKEMEnums = {
-    addStrategy: [
-        'async',
-        'sync',
-    ],
-    removeStrategy: [
-        'remover',
-        'remover-before',
-        'removee',
-    ],
-    updateStrategy: [
-        'LCA',
-        'root',
-    ],
-    mergeStrategy: [
-        'blank',
-        'keep',
-    ],
-    splitStrategy: [
-        'blank',
-        'keep',
-    ],
+const processSkeleton = (root, epoch, skeletonExtra, region, counts) => {
+    for (const [node, childTrace] of skeletonGen(root, epoch, skeletonExtra, region, counts)) {
+        assert(!node.isLeaf);
+        assert(childTrace === null || node.children.indexOf(childTrace) >= 0);
+        for (const child of node.children) {
+            if (node === childTrace) {
+                continue;
+            }
+            skeletonEnc(child, counts);
+        }
+    }
+    assert(skeletonExtra.size === 0);
+};
+
+const isSkeleton = (node, epoch, skeletonExtra) => node.epoch === epoch || skeletonExtra.has(node);
+
+const skeletonGen = function * (root, epoch, skeletonExtra, region, counts) {
+    assert(isSkeleton(root, epoch, skeletonExtra));
+    skeletonExtra.delete(root);
+    if (root.isAllRemoved) {
+        return;
+    }
+    if (root.isLeaf) {
+        assert(root.data.secret);
+        return;
+    }
+    const isInRegion = region.has(root);
+    const isInSkeleton = root.children.map(child => isSkeleton(child, epoch, skeletonExtra));
+    /**
+     *
+     * choose trace for PRG:
+     * - must be in skeleton and in region
+     * - choose `childTrace` if valid
+     * - otherwise choose, e.g., first valid
+     *
+     */
+    let firstInSkeletonCapRegion = null
+    let childTrace = null;
+    for (const [i, child] of root.children.entries()) {
+        if (!(isInSkeleton[i] && region.has(child))) {
+            continue;
+        }
+        if (firstInSkeletonCapRegion === null) {
+            firstInSkeletonCapRegion = child;
+        }
+        if (child === root.childTrace) {
+            childTrace = child;
+        }
+    }
+    if (childTrace === null) {
+        childTrace = firstInSkeletonCapRegion;
+    }
+    let seedTrace = null;
+    for (const [i, child] of root.children.entries()) {
+        if (!isInSkeleton[i]) {
+            continue;
+        }
+        const seed = yield * skeletonGen(child, epoch, skeletonExtra, region, counts);
+        if (child === childTrace) {
+            seedTrace = seed;
+        }
+    }
+    root.data.secret = null;
+    if (isInRegion) {
+        if (seedTrace) {
+            ++counts.PRG;
+        } else {
+            ++counts.random;
+        }
+        ++counts.Gen;
+        root.data.secret = 1;
+        yield [root, childTrace];
+    }
+    root.data.sizeBlank = sum(root.children.map(child => child.data.sizeBlank ?? 0), Number(Boolean(root.data.secret)));
+    return Number(isInRegion);
+};
+
+const skeletonEnc = (root, counts) => {
+    if (root.isAllRemoved) {
+        return;
+    }
+    assert(!root.isLeaf || root.data.secret);
+    if (root.data.secret) {
+        ++counts.Enc;
+    } else {
+        for (const child of root.children) {
+            skeletonEnc(child, counts);
+        }
+    }
 };
 
 export
-const makeTreeKEM = (TreeType, add = 'async', remove = 'remover', update = 'LCA', merge = 'blank', split = 'blank') => {
-    assert(TreeKEMEnums.addStrategy.includes(add));
-    assert(TreeKEMEnums.removeStrategy.includes(remove));
-    assert(TreeKEMEnums.updateStrategy.includes(update));
-    assert(TreeKEMEnums.mergeStrategy.includes(merge));
-    assert(TreeKEMEnums.splitStrategy.includes(split));
+const makeTreeKEM = (TreeType) => {
     return (
 class TreeKEM {
     constructor() {
-        this.root = new TreeType(undefined, undefined, {removed: false, id: 0, counts: [0, 0, 0, 0, 0, 0]});
-        this.users = [this.root];
+        this.tree = null;
+        this.epoch = 0;
+        this.users = [];
+
+        this.counts = Object.fromEntries('random,PRG,Gen,Enc,Dec'.split(',').map(key => [key, 0]));
     }
+
     init(n) {
-        for (const _ of range(1, n)) {
-            this.add(0, this.users.length);
+        ++this.epoch;
+        this.tree = TreeType.init(n, this.epoch);
+        for (const leaf of this.tree.getLeaves(true)) {
+            const i = this.users.length;
+            this.constructor.initData(leaf, i);
+            this.users.push(leaf);
         }
+        assert(this.users.length === n);
     }
+    static initData(leaf, id) {
+        leaf.data.id = id;
+        leaf.data.secret = 1;
+        leaf.data.sizeBlank = 0;
+    }
+
     add(a, b) {
         assert(a in this.users && b === this.users.length);
-        this.users.push(new TreeType(undefined, undefined, {removed: false, id: b, counts: [0, 0, 0, 0, 0, 0]})); // counts: [prg, gen, enc, dec, dec-prg, dec-gen]
+        ++this.epoch;
+        const leafNew = new TreeType(this.epoch);
+        this.constructor.initData(leafNew, b);
+        this.users.push(leafNew);
         const ua = this.users[a], ub = this.users[b];
-        let onRemoveChild;
-        switch (split) {
-            case 'blank': {
-                onRemoveChild = parent => (parent.secret = []);
-            } break;
-            case 'keep': {
-                onRemoveChild = (parent, grandparent) => {
-                    if (parent.secret !== true) {
-                        grandparent && (grandparent.secretGrand = parent.secret);
-                    } else {
-                        grandparent && (grandparent.secretGrand = parent.children.slice());
-                    }
-                    parent.secret = [];
-                };
-            } break;
-        }
-        switch (add) {
-            case 'async': {
-                // modify tree
-                this.root = this.root.add(ub, ua, {secret: [], secretGrand: []}, onRemoveChild);
-                // blank out
-                let node = ub.parent;
-                while (node !== null) {
-                    node.secret = [];
-                    node = node.parent;
-                }
-            } break;
-            case 'sync': {
-                // modify tree
-                const blanks = [];
-                this.root = this.root.add(ub, ua, {secret: [], secretGrand: []}, (parent, grandparent, ...children) => {
-                    if (parent.secret !== true) {
-                        parent.secret = parent.secret.filter(c => !children.includes(c)); // ensure secret subset children
-                    }
-                    blanks.push([parent, grandparent]);
-                });
-                // update
-                this.update(b, a);
-                // modify tree cont.
-                for (const [node, parent] of blanks) {
-                    onRemoveChild(node, parent);
-                }
-            } break;
-        }
+        this.tree = this.tree.add(this.epoch, ub, ua);
+
+        const skeletonExtra = new Set();
+
+        const region = new Set(ua.getPath(this.epoch));
+        processSkeleton(this.tree, this.epoch, skeletonExtra, region, this.counts);
     }
+
     remove(a, b) {
         assert(a in this.users && b in this.users && b !== a);
+        ++this.epoch;
         const ua = this.users[a], ub = this.users[b];
-        this.setRemoved(ub);
-        let onAddChild;
-        switch (merge) {
-            // grandparent always not null
-            case 'blank': {
-                onAddChild = parent => (parent.secret = []);
-            } break;
-            case 'keep': {
-                onAddChild = (parent, grandparent, ...children) => (parent.secret = parent.children.filter(c => !children.includes(c)));
-            } break;
+        delete this.users[b];
+        this.tree = this.tree.remove(this.epoch, ub, ua);
+
+        const skeletonExtra = new Set();
+        const root = this.tree;
+        if (root.epoch < this.epoch) {
+            skeletonExtra.add(root);
         }
-        switch (remove) {
-            case 'remover': {
-                // blank out
-                let node = ub.parent;
-                while (node !== null) {
-                    node.secret = [];
-                    node = node.parent;
-                }
-                // modify tree
-                const blanks = [], merges = [];
-                this.root = this.root.remove(ub, (parent, grandparent, ...children) => {
-                    if (parent.secret !== true) {
-                        parent.secret = parent.secret.filter(c => !children.includes(c)); // ensure secret subset children
-                    }
-                    blanks.push(parent);
-                }, (parent, grandparent, ...children) => merges.push([parent, children]));
-                // update at remover
-                this.update(a);
-                // modify tree cont.
-                for (const node of blanks) {
-                    node.secret = [];
-                }
-                for (const [node, children] of merges) {
-                    onAddChild(node, ...children);
-                }
-            } break;
-            case 'remover-before': {
-                // blank out
-                let node = ub.parent;
-                while (node !== null) {
-                    node.secret = [];
-                    node = node.parent;
-                }
-                // update at remover
-                this.update(a);
-                // modify tree
-                this.root = this.root.remove(ub, parent => (parent.secret = []), onAddChild);
-            } break;
-            case 'removee': {
-                // update at removee
-                this.update(b, a);
-                // modify tree
-                this.root = this.root.remove(ub, parent => (parent.secret = []), onAddChild);
-            } break;
-        }
+
+        const region = new Set(ua.getPath(this.epoch));
+        processSkeleton(this.tree, this.epoch, skeletonExtra, region, this.counts);
     }
-    setRemoved(leaf, removed = true) {
-        leaf.removed = removed;
-        const updateRemoved = root => {
-            if ('counts' in root) { // leaf
-                return;
-            }
-            for (const child of root.children) {
-                updateRemoved(child);
-            }
-            root.removed = root.children.every(c => c.removed);
-        };
-        updateRemoved(this.root);
-    }
+
     update(b, a = b) {
         assert(a in this.users && b in this.users);
+        ++this.epoch;
         const ua = this.users[a], ub = this.users[b];
-        this.setRemoved(ua, true); // set removed temporarily to prevent enc to oneself
-        let node;
-        // update and broadcast
-        node = ub;
-        const path = [];
-        while (node !== null) {
-            path.unshift(node);
-            ++ua.counts[0]; // prg
-            if (node.parent !== null) {
-                ++ua.counts[1]; // gen
-                let find = false;
-                for (const copath of node.parent.children) {
-                    if (copath === node) {
-                        find = true;
-                        continue;
-                    }
-                    this.constructor.broadcast(copath, ua.counts);
-                }
-                assert(find);
-            }
-            if (node !== ub) {
-                node.secret = true;
-            }
-            node = node.parent;
-        }
-        this.setRemoved(ua, false); // unset removed
-        // blank out
-        // ineffective when a = b
-        switch (update) {
-            case 'LCA': {
-                node = ua;
-                while (!path.includes(node)) {
-                    assert(node !== null);
-                    node = node.parent;
-                }
-            } break;
-            case 'root': {
-                node = path[0];
-            } break;
-        }
-        for (let i = path.indexOf(node) + 1; i < path.length - 1; ++i) {
-            path[i].secret = [];
-        }
-    }
-    static broadcast(root, counts, update = root.parent, count = true, secretGrand = []) {
-        assert(root !== null);
-        if (root.removed) {
-            return;
-        }
-        if ('counts' in root) { // leaf
-            if (count) {
-                ++counts[2]; // enc
-            }
-            ++root.counts[3]; // dec
-            assert(update !== null);
-            for (let node = update; node !== null; node = node.parent) {
-                ++root.counts[4]; // dec-prg
-                if (node.parent !== null) {
-                    ++root.counts[5]; // dec-gen
-                }
-            }
-            return;
-        }
-        assert(root.secret === true || root.secret.every(c => root.children.includes(c)));
-        let useSecretGrand = false, useSecret = false, selfSecretGrandUsed = false;
-        for (const child of root.children) {
-            if (secretGrand.includes(child)) {
-                useSecretGrand = true;
-                selfSecretGrandUsed = this.broadcast(child, null, update, false, root.secretGrand);
-            } else if (root.secret === true || root.secret.includes(child)) {
-                useSecret = true;
-                selfSecretGrandUsed = this.broadcast(child, null, update, false, root.secretGrand);
-            } else {
-                selfSecretGrandUsed = this.broadcast(child, counts, update, count, root.secretGrand);
-            }
-        }
-        if (count) {
-            if (useSecret) {
-                ++counts[2]; // enc
-            }
-            if (selfSecretGrandUsed) {
-                ++counts[2]; // enc
-            }
-        }
-        return useSecretGrand;
+
+        const skeletonExtra = new Set(ub.getPath(this.epoch));
+
+        const region = new Set(ua.getPath(this.epoch));
+        processSkeleton(this.tree, this.epoch, skeletonExtra, region, this.counts);
     }
 }
     );

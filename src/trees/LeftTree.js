@@ -1,5 +1,5 @@
-import {assert} from '../utils.js';
-import Tree from './baseTree.js';
+import {assert, replace, randomChoice} from '../utils.js';
+import {BinaryTree} from './baseTree.js';
 
 export
 const LeftTreeEnums = {
@@ -19,126 +19,161 @@ const makeLeftTree = (position = 'greedy', truncate = 'truncate') => {
     assert(LeftTreeEnums.position.includes(position));
     assert(LeftTreeEnums.truncate.includes(truncate));
     return (
-class LeftTree extends Tree { // left-balanced binary tree: left child is perfect binary tree, right child is left-balanced binary tree, and height of left child is no less than height of right child (i.e. [#leaf in left child] = 2^floor(log2[#leaf]))
-    constructor(parent, children = [null, null], info) {
-        super(parent, children, info);
-        const [childL, childR] = children;
-        this.setChildren(childR, childL);
-    }
-    get children() {
-        return [this.childL, this.childR];
-    }
-    set children(children) {
-        // ineffective
-    }
-    setChildren(childR = this.childR, childL = this.childL) {
-        if (childL !== null) {
-            assert(childL.perfect);
+
+/**
+ *
+ * left-balanced binary tree:
+ * - left child is *perfect* binary tree,
+ * - right child is recursively left-balanced binary tree,
+ * - height of left child is no less than height of right child
+ *
+ * Fact.
+ * [#leaf in perfect binary tree] = 2^floor(log2[#leaf])
+ *
+ */
+class LeftTree extends BinaryTree {
+    constructor(epoch, children, childTrace) {
+        super(epoch, children, childTrace);
+
+        this.rawL = this.childL;
+        this.rawR = this.childR;
+
+        if (this.isLeaf) {
+            this.isPerfect = true;
+            this.sizeRemoved = 0;
+            this.leftmostRemoved = null;
+        } else {
+            assert(this.rawL.isPerfect);
+            assert(this.rawR.height <= this.rawL.height);
+            this.isPerfect = this.rawR.isPerfect && this.rawR.height === this.rawL.height;
+            this.sizeRemoved = this.rawL.sizeRemoved + this.rawR.sizeRemoved;
+            this.leftmostRemoved = this.rawL.leftmostRemoved ?? this.rawR.leftmostRemoved;
         }
-        this.childL = childL;
-        this.childR = childR;
-        this.perfect = childL === null && childR === null ? 1 : childL.perfect === childR.perfect ? childL.perfect + 1 : NaN;
+        assert((this.sizeRemoved === 0) === (this.leftmostRemoved === null));
     }
-    append(leaf = new this.constructor(), info = {}) {
-        assert(this !== null); // leaf is always perfect
-        if (this.perfect) {
-            const node = new this.constructor(this.parent, [this, leaf], info);
-            leaf.parent = node;
-            this.parent = node;
-            return node;
+    static newRemoved(epoch) {
+        const node = new this(epoch);
+        node.sizeRemoved = 1;
+        node.leftmostRemoved = node;
+        return node;
+    }
+
+    get isAllRemoved() {
+        return this.sizeRemoved === this.sizeLeaf;
+    }
+    get info() {
+        return [this.isAllRemoved ? '∅' : '', this.epoch, this.data];
+    }
+
+    getClosestRemoved(epoch) {
+        for (const node of this.getPath(epoch)) {
+            if (node.leftmostRemoved !== null) {
+                return node.leftmostRemoved;
+            }
         }
-        this.setChildren(this.childR.append(leaf, info)); // always append to right child
-        return this;
+        return null;
     }
-    truncate() {
-        const node = this.childR;
-        if (node === null) {
-            if (!this.recycle) {
+    getRandomRemoved() {
+        if (this.sizeRemoved === 0) {
+            return null;
+        }
+        if (this.isLeaf) {
+            return this;
+        }
+        return randomChoice(this.children, 'sizeRemoved', this.sizeRemoved).getRandomRemoved();
+    }
+
+    static init(n, epoch = 0) {
+        assert(Number.isInteger(n) && n > 0);
+        return this.initAny(epoch, n);
+    }
+    static initAny(epoch, n) {
+        if (n === 1) {
+            return new this(epoch);
+        }
+        const h = Math.floor(Math.log2(n)), nL = Math.pow(2, h);
+        if (nL === n) {
+            return this.initPerfect(epoch, h);
+        }
+        assert(nL < n);
+        const children = [
+            this.initPerfect(epoch, h),
+            this.initAny(epoch, n - nL),
+        ];
+        return new this(epoch, children, children[0]); // arbitrary trace
+    }
+    static initPerfect(epoch, h) {
+        if (h === 0) {
+            return new this(epoch);
+        }
+        const children = [
+            this.initPerfect(epoch, h-1),
+            this.initPerfect(epoch, h-1),
+        ];
+        return new this(epoch, children, children[0]); // arbitrary trace
+    }
+
+    append(epoch, leaf) {
+        if (this.isPerfect) {
+            return new this.constructor(epoch, [this, leaf], leaf);
+        }
+        const childNew = this.rawR.append(epoch, leaf);
+        return new this.constructor(epoch, [this.rawL, childNew], childNew);
+    }
+
+    truncate(epoch) {
+        if (this.isAllRemoved) {
+            return null;
+        }
+        if (this.isLeaf) {
+            return this;
+        }
+        const childNew = this.rawR.truncate(epoch);
+        if (childNew !== null) {
+            if (childNew === this.rawR) {
                 return this;
             }
-            throw new Error('attempting to remove the last node');
+            const childTrace = childNew.epoch === epoch ? childNew : null;
+            return new this.constructor(epoch, [this.rawL, childNew], childTrace);
         }
-        if ( /* node.childL === null && */ node.childR === null) { // leaf
-            assert(node.childL === null);
-            if (node.recycle) {
-                this.childL.parent = this.parent;
-                return this.childL;
-            } else {
-                return this;
-            }
-        }
-        this.setChildren(this.childR.truncate());
-        return this;
+        return this.rawL.truncate(epoch);
     }
-    add(leaf, hint, info, _onRemoveChild) {
-        let recycle;
+
+    add(epoch, leaf, hint = null) {
+        assert(leaf.isLeaf && leaf.getRoot(epoch) !== this);
+        assert(hint === null || /* hint.isLeaf && */ hint.getRoot(epoch) === this);
+        let leafRemoved = null;
         switch (position) {
             case 'greedy': {
-                recycle = this.constructor.recycle(hint).next().value;
+                leafRemoved = hint?.getClosestRemoved(epoch);
             } break;
             case 'random': {
-                const recycles = [...this.constructor.recycle(hint)];
-                recycle = recycles[Math.floor(Math.random() * (recycles.length + 1))]; // +1 for the chance to append
+                leafRemoved = this.getRandomRemoved();
             } break;
             case 'append': {} break;
         }
-        if (!recycle) {
-            return this.append(leaf, info);
+        if (leafRemoved) {
+            return leafRemoved.replace(epoch, leaf);
         }
-        const parent = recycle.parent;
-        recycle.parent = null;
-        leaf.parent = parent;
-        if (parent.childL === recycle) {
-            parent.childL = leaf;
-        } else {
-            assert(parent.childR === recycle);
-            parent.childR = leaf;
-        }
-        return this;
+        return this.append(epoch, leaf);
     }
-    remove(leaf, _onRemoveChild, _onAddChild) {
-        leaf.recycle = true;
+
+    remove(epoch, leaf, _hint) {
+        const leafRemoved = this.constructor.newRemoved(epoch);
+        const rootNew = leaf.replace(epoch, leafRemoved);
         switch (truncate) {
             case 'truncate': {
-                let root = this;
-                while (true) {
-                    const rootNew = root.truncate();
-                    if (rootNew === root) {
-                        break;
-                    }
-                    root = rootNew;
+                const rootTruncate = rootNew.truncate(epoch);
+                assert(rootTruncate, 'attempting to remove the last node');
+                if (rootTruncate.epoch < epoch) {
+                    rootTruncate.setParent(epoch, null);
                 }
-                return root;
+                return rootTruncate;
             } break;
             case 'keep': {
-                return this;
+                return rootNew;
             } break;
         }
-    }
-    static * recycle(leaf) {
-        let node = leaf;
-        assert(node !== null);
-        while (node.parent !== null) {
-            if (node.parent.childL === node) {
-                yield * this.recycleLeaves(node.parent.childR);
-            } else {
-                assert(node.parent.childR === node);
-                yield * this.recycleLeaves(node.parent.childL);
-            }
-            node = node.parent;
-        }
-    }
-    static * recycleLeaves(root) {
-        if ( /* root.childL === null && */ root.childR === null) { // leaf
-            assert(root.childL === null);
-            if (root.recycle) {
-                yield root;
-            }
-            return;
-        }
-        assert(root.childL !== null && root.childR !== null);
-        yield * this.recycleLeaves(root.childL);
-        yield * this.recycleLeaves(root.childR);
     }
 }
     );

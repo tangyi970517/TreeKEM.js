@@ -1,7 +1,8 @@
 export
-const assert = (cond, message = `\`${cond}\` is falsy.`) => {
+const assert = (cond, ...messages) => {
     if (!cond) {
-        throw new Error(message);
+        console.assert(cond, ...messages);
+        throw new Error(messages[0]);
     }
 };
 
@@ -19,4 +20,39 @@ export
 const randint = (endOrStart, nullOrEnd = null) => {
     const [start, end] = parseStartEnd(endOrStart, nullOrEnd);
     return Math.floor(Math.random() * (end - start) + start);
+};
+
+export
+const sum = (list, init = 0) => list.reduce((s, a) => s + a, init);
+export
+const prod = (list, init = 1) => list.reduce((p, a) => p * a, init);
+
+export
+const replace = (list, itemOld, ...itemsNew) => {
+    const i = list.indexOf(itemOld);
+    assert(i >= 0, 'replace not found');
+    return list.toSpliced(i, 1, ...itemsNew);
+};
+
+export
+const randomChoice = (list, weightFuncKey = null, weightSumHint = null) => {
+    let weightFunc;
+    if (weightFuncKey === null) {
+        weightFunc = _ => 1;
+    } else if (typeof weightFuncKey === 'string' || typeof weightFuncKey === 'symbol') {
+        weightFunc = x => x[weightFuncKey];
+    } else {
+        weightFunc = weightFuncKey;
+    }
+    const weights = list.map(weightFunc);
+    const weightSum = weightSumHint ?? sum(weights);
+    const r = Math.random() * weightSum;
+    let s = 0;
+    for (const [i, x] of list.entries()) {
+        s += weights[i];
+        if (r < s) {
+            return x;
+        }
+    }
+    assert(false, 'choice out of range');
 };

@@ -28,9 +28,10 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
                 TreeKEM.remove(user, userOld);
             } break;
             case 2: {
+                const userCom = users[randint(users.length)];
                 const user = users[randint(users.length)];
-                if (verbose >= 1) console.log('update', user, 'at', t);
-                TreeKEM.update(user);
+                if (verbose >= 1) console.log('update', userCom, 'by', user, 'at', t);
+                TreeKEM.update(userCom, user);
             } break;
         }
     }
@@ -38,11 +39,12 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
     if (verbose >= 1) console.log('add count', nAdd, '/', T);
     if (verbose >= 1) console.log('remove count', nRem, '/', T);
     if (verbose >= 1) console.log('update count', nUpd, '/', T);
+    if (verbose >= 1) console.log('stat', TreeKEM.counts, '/', T);
 };
 
-import {TreeKEMEnums, makeTreeKEM} from './TreeKEM.js';
+import {makeTreeKEM} from './TreeKEM.js';
 
-// import TreeTypes from './trees/mod.test.js';
+// import {TreeTypes} from './trees/mod.test.js';
 import LeftTree from './trees/LeftTree.js';
 import {$23Tree, $234Tree} from './trees/BTree.js';
 const TreeTypes = new Map([
@@ -52,15 +54,12 @@ const TreeTypes = new Map([
 ]);
 
 const TreeKEMTypes = new Map();
-for (const [descTree, TreeType] of TreeTypes.entries())
-for (const as of TreeKEMEnums.addStrategy)
-for (const rs of TreeKEMEnums.removeStrategy)
-for (const us of TreeKEMEnums.updateStrategy) {
-    TreeKEMTypes.set(`tree=(${descTree}), add=${as}, remove=${rs}, update=${us}`, makeTreeKEM(TreeType, as, rs, us));
+for (const [descTree, TreeType] of TreeTypes.entries()) {
+    TreeKEMTypes.set(`tree=(${descTree})`, makeTreeKEM(TreeType));
 }
 
 for (const [desc, TreeKEMType] of TreeKEMTypes.entries()) {
     Deno.test(`test TreeKEM: ${desc}; small`, () => testTreeKEM(TreeKEMType, 30, 1000));
     Deno.test(`test TreeKEM: ${desc}; large`, () => testTreeKEM(TreeKEMType, 600, 10000));
-    // Deno.test(`test TreeKEM: ${desc}; giant`, () => testTreeKEM(TreeKEMType, 10000, 100000));
+    Deno.test(`test TreeKEM: ${desc}; giant`, () => testTreeKEM(TreeKEMType, 10000, 100000));
 }
