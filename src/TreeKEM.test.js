@@ -1,8 +1,13 @@
 import {range, randint} from './utils.js';
 
+import CounterCrypto from './crypto/counter.js';
+const crypto = new CounterCrypto();
+
 const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
     const TreeKEM = new TreeKEMType();
-    TreeKEM.init(n);
+    const ks = Array.from(Array(n), () => crypto.Gen(crypto.random()));
+    const pks = ks.map(k => k[0]), sk0 = ks[0][1];
+    TreeKEM.init(pks, sk0);
     const users = [...range(n)];
     let userLast = n-1;
     const count = [0, 0, 0];
@@ -15,7 +20,8 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
                 const user = users[randint(users.length)];
                 users.push(userNew);
                 if (verbose >= 1) console.log('add', userNew, 'by', user, 'at', t);
-                TreeKEM.add(user, userNew);
+                const [pk, _] = crypto.Gen(crypto.random());
+                TreeKEM.add(user, userNew, pk);
             } break;
             case 1: {
                 if (users.length < 2) {
@@ -39,7 +45,7 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
     if (verbose >= 1) console.log('add count', nAdd, '/', T);
     if (verbose >= 1) console.log('remove count', nRem, '/', T);
     if (verbose >= 1) console.log('update count', nUpd, '/', T);
-    if (verbose >= 1) console.log('stat', TreeKEM.counts, '/', T);
+    if (verbose >= 1) console.log('stat', TreeKEM.crypto.stat, '/', T);
 };
 
 import {makeTreeKEM} from './TreeKEM.js';
@@ -48,7 +54,7 @@ import {TreeTypes} from './trees/mod.js';
 
 const TreeKEMTypes = new Map();
 for (const [descTree, TreeType] of TreeTypes.entries()) {
-    TreeKEMTypes.set(`tree=(${descTree})`, makeTreeKEM(TreeType));
+    TreeKEMTypes.set(`tree=(${descTree})`, makeTreeKEM(TreeType, CounterCrypto));
 }
 
 for (const [desc, TreeKEMType] of TreeKEMTypes.entries()) {
