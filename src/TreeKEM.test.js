@@ -44,14 +44,7 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 
 import {makeTreeKEM} from './TreeKEM.js';
 
-// import {TreeTypes} from './trees/mod.test.js';
-import LeftTree from './trees/LeftTree.js';
-import {$23Tree, $234Tree} from './trees/BTree.js';
-const TreeTypes = new Map([
-    ['left', LeftTree],
-    ['2-3', $23Tree],
-    ['2-3-4', $234Tree],
-]);
+import {TreeTypes} from './trees/mod.js';
 
 const TreeKEMTypes = new Map();
 for (const [descTree, TreeType] of TreeTypes.entries()) {

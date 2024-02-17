@@ -99,26 +99,7 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
     if (verbose >= 1) console.log('remove count', nRem, '≈', n, '*', T, '/3');
 };
 
-import {LeftTreeEnums, makeLeftTree} from './LeftTree.js';
-import {BTreeEnums, makeBTree, make23Tree, make234Tree} from './BTree.js';
-
-export
-const TreeTypes = new Map();
-for (const position of LeftTreeEnums.position)
-for (const truncate of LeftTreeEnums.truncate) {
-    if (position === 'random') continue;
-    TreeTypes.set(`left: pos=${position}, rem=${truncate}`, makeLeftTree(position, truncate));
-}
-for (const position of BTreeEnums.position) {
-    if (position === 'random') continue;
-    TreeTypes.set(`2-3: pos=${position}`, make23Tree(position));
-    TreeTypes.set(`2-3-4: pos=${position}`, make234Tree(position));
-}
-for (const m of [5, 8, 13, 21])
-for (const position of BTreeEnums.position) {
-    if (position === 'random') continue;
-    TreeTypes.set(`B: max=${m}, pos=${position}`, makeBTree(m, position));
-}
+import {TreeTypes} from './mod.js';
 
 for (const [desc, TreeType] of TreeTypes.entries()) {
     Deno.test(`test tree: ${desc}; random small`, () => testTree(TreeType, 30, 1000, false));
