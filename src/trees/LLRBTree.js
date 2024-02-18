@@ -70,7 +70,18 @@ const makeLLRBTree = (mode = 'normal', position = 'greedy') => {
     assert(LLRBTreeEnums.mode.includes(mode));
     assert(LLRBTreeEnums.position.includes(position));
     const m = mode === '2-3' ? 3 : 4;
-    const BTree = makeBTree(m, position, BTreePluginLLRB);
+    //
+//
+class BTree extends makeBTree(m, position, BTreePluginLLRB) {
+    constructor(epoch, children, childTrace) {
+        super(epoch, children, childTrace);
+        this.RB = null;
+        this.RL = null;
+        this.RR = null;
+    }
+}
+//
+    //
     return (
 class LLRBTree extends BinaryTree {
     constructor(epoch, children, childTrace) {
@@ -86,7 +97,7 @@ class LLRBTree extends BinaryTree {
     }
 
     static isomorph(epoch, node) {
-        if ('RB' in node && node.RB !== null) {
+        if (node.RB !== null) {
             const nodeRB = node.RB;
             nodeRB.B = node; // even overwrite!
             return nodeRB;
@@ -122,7 +133,7 @@ class LLRBTree extends BinaryTree {
             case 3:
             case 4: {
                 let nodeL, traceL = null;
-                if ('RL' in node && node.RL !== null) {
+                if (node.RL !== null) {
                     assert(node.RL.children[0] === children[0] && node.RL.children[1] === children[1]);
                     assert(!(indexTrace < 2));
                     nodeL = node.RL;
@@ -139,7 +150,7 @@ class LLRBTree extends BinaryTree {
                     break;
                 }
                 let nodeR, traceR = null;
-                if ('RR' in node && node.RR !== null) {
+                if (node.RR !== null) {
                     assert(node.RR.children[0] === children[2] && node.RR.children[1] === children[3]);
                     assert(!(indexTrace >= 2));
                     nodeR = node.RR;
