@@ -12,6 +12,7 @@ const testTree = (TreeType, n, T, isFast = true, verbose = 0) => {
     }
     const count = [0, 0];
     for (const t of range(T)) {
+        const treeOld = tree;
         const op = randint(2);
         ++count[op];
         switch (op) {
@@ -23,6 +24,7 @@ const testTree = (TreeType, n, T, isFast = true, verbose = 0) => {
                 leaves.push(leafNew);
                 if (verbose >= 1) console.log('add', leafNew.info, 'by', leafHint.info, 'at', t, '@', epoch);
                 tree = tree.add(epoch, leafNew, leafHint);
+                treeOld.clearTill(epoch, tree);
                 if (verbose >= 3) tree.print();
                 if (verbose >= 3) tree.B?.print?.();
                 assert(tree.getTrace() === leafNew);
@@ -38,6 +40,7 @@ const testTree = (TreeType, n, T, isFast = true, verbose = 0) => {
                 const leafHint = leaves[randint(leaves.length)];
                 if (verbose >= 1) console.log('remove', leafOld.info, 'by', leafHint.info, 'at', t, '@', epoch);
                 tree = tree.remove(epoch, leafOld, leafHint);
+                treeOld.clearTill(epoch, tree);
                 if (verbose >= 3) tree.print();
                 if (verbose >= 3) tree.B?.print?.();
                 assert(tree.epoch <= epoch);
@@ -74,7 +77,9 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
             const leafHint = leaves[randint(leaves.length)];
             leaves.push(leafNew);
             if (verbose >= 2) console.log('add', leafNew.info, 'by', leafHint.info, 'at', t, ':', i, '@', epoch);
+            const treeOld = tree;
             tree = tree.add(epoch, leafNew, leafHint);
+            treeOld.clearTill(epoch, tree);
             if (verbose >= 3) tree.print();
             if (verbose >= 3) tree.B?.print?.();
             assert(tree.getTrace() === leafNew);
@@ -91,7 +96,9 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
             const leafOld = leaves.splice(randint(leaves.length), 1)[0];
             const leafHint = leaves[randint(leaves.length)];
             if (verbose >= 2) console.log('remove', leafOld.info, 'by', leafHint.info, 'at', t, ':', i, '@', epoch);
+            const treeOld = tree;
             tree = tree.remove(epoch, leafOld, leafHint);
+            treeOld.clearTill(epoch, tree);
             if (verbose >= 3) tree.print();
             if (verbose >= 3) tree.B?.print?.();
             assert(tree.epoch <= epoch);
@@ -112,5 +119,8 @@ for (const [desc, TreeType] of TreeTypes.entries()) {
     Deno.test(`test tree: ${desc}; random large`, () => testTree(TreeType, 600, 10000));
     Deno.test(`test tree: ${desc}; random giant`, () => testTree(TreeType, 10000, 100000));
     Deno.test(`test tree: ${desc}; bounce small`, () => testTreeBounce(TreeType, 30, 100, false));
+    if (desc.startsWith('left:') && desc.includes('append'))
     Deno.test(`test tree: ${desc}; bounce large`, () => testTreeBounce(TreeType, 600, 100));
+    else
+    Deno.test(`test tree: ${desc}; bounce large`, () => testTreeBounce(TreeType, 600, 1000));
 }

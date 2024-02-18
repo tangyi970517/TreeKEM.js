@@ -7,7 +7,8 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
     const TreeKEM = new TreeKEMType();
     const ks = Array.from(Array(n), () => crypto.Gen(crypto.random()));
     const pks = ks.map(k => k[0]), sk0 = ks[0][1];
-    TreeKEM.init(pks, sk0);
+    const cryptoOld = TreeKEM.init(pks, sk0);
+    if (verbose >= 1) console.log('init stat', cryptoOld.stat);
     const users = [...range(n)];
     let userLast = n-1;
     const count = [0, 0, 0];

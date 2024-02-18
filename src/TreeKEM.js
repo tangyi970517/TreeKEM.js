@@ -108,6 +108,7 @@ class TreeKEM {
     init(pks, sk0) {
         ++this.epoch;
         const n = pks.length;
+        assert(this.tree === null);
         this.tree = TreeType.init(n, this.epoch);
         for (const leaf of this.tree.getLeaves(true)) {
             const i = this.users.length;
@@ -125,7 +126,9 @@ class TreeKEM {
         yield * processSkeleton(this.tree, this.epoch, skeletonExtra, region, this.crypto);
         }.bind(this)()) ;
 
+        const cryptoOld = this.crypto;
         this.crypto = new Crypto();
+        return cryptoOld;
     }
     static initData(leaf, id, pk, sk = null) {
         leaf.data.id = id;
@@ -134,14 +137,18 @@ class TreeKEM {
         leaf.data.sizeBlank = 0;
     }
 
-    add(a, b, pk) {
+    add(a, b, pk, clearingOldNodes = true) {
         assert(a in this.users && b === this.users.length);
         ++this.epoch;
         const leafNew = new TreeType(this.epoch);
         this.constructor.initData(leafNew, b, pk);
         this.users.push(leafNew);
         const ua = this.users[a], ub = this.users[b];
+        const treeOld = this.tree;
         this.tree = this.tree.add(this.epoch, ub, ua);
+        if (clearingOldNodes) {
+            treeOld.clearTill(this.epoch, this.tree);
+        }
 
         const skeletonExtra = new Set();
 
@@ -149,14 +156,20 @@ class TreeKEM {
         for (const _ of function * () {
         yield * processSkeleton(this.tree, this.epoch, skeletonExtra, region, this.crypto);
         }.bind(this)()) ;
+
+        return clearingOldNodes ? null : treeOld;
     }
 
-    remove(a, b) {
+    remove(a, b, clearingOldNodes = true) {
         assert(a in this.users && b in this.users && b !== a);
         ++this.epoch;
         const ua = this.users[a], ub = this.users[b];
         delete this.users[b];
+        const treeOld = this.tree;
         this.tree = this.tree.remove(this.epoch, ub, ua);
+        if (clearingOldNodes) {
+            treeOld.clearTill(this.epoch, this.tree);
+        }
 
         const skeletonExtra = new Set();
         const root = this.tree;
@@ -168,6 +181,8 @@ class TreeKEM {
         for (const _ of function * () {
         yield * processSkeleton(this.tree, this.epoch, skeletonExtra, region, this.crypto);
         }.bind(this)()) ;
+
+        return clearingOldNodes ? null : treeOld;
     }
 
     update(b, a = b) {

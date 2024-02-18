@@ -171,6 +171,17 @@ class Tree {
         assert(false, 'abstract remove method');
     }
 
+    clearTill(epochNew, rootNew) {
+        if (this.getRoot(epochNew, true) === rootNew) {
+            return;
+        }
+        for (const child of this.children) {
+            child.clearTill(epochNew, rootNew);
+        }
+        this.children.length = 0; // clear array
+        this.parentHistory.length = 0; // clear array
+    }
+
     get info() {
         return [this.epoch, this.data];
     }

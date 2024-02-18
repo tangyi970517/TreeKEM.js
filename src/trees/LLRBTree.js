@@ -193,6 +193,18 @@ class LLRBTree extends BinaryTree {
         }
         return RBNew;
     }
+
+    clearTill(epochNew, rootNew) {
+        if (this.getRoot(epochNew, true) === rootNew) {
+            return;
+        }
+        if (this.B !== null) {
+            assert(rootNew.B !== null);
+            this.B.clearTill(epochNew, rootNew.B);
+            this.B = null;
+        }
+        super.clearTill(epochNew, rootNew);
+    }
 }
     );
 };
