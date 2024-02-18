@@ -142,12 +142,13 @@ class Tree {
         }
     }
 
-    replace(epoch, node) {
+    replace(epoch, node, plugin = null) {
         const parent = this.getParent(epoch);
         if (parent === null) {
             return node;
         }
         const parentNew = new this.constructor(epoch, replace(parent.children, this, node), node);
+        plugin?.align(parentNew, parent);
         return parent.replace(epoch, parentNew);
     }
 

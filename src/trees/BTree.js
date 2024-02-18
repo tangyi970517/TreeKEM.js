@@ -10,7 +10,7 @@ const BTreeEnums = {
 };
 
 export
-const makeBTree = (m = 3, position = 'greedy') => {
+const makeBTree = (m = 3, position = 'greedy', plugin = null) => {
     assert(Number.isInteger(m) && m >= 3);
     assert(BTreeEnums.position.includes(position));
     const max = m, min = Math.ceil(m / 2);
@@ -63,7 +63,8 @@ class BTree extends Tree {
         if (peers.length < max) {
             peers.push(sibling);
             const parentNew = new this.constructor(epoch, peers, sibling);
-            return parent.replace(epoch, parentNew);
+            plugin?.align(parentNew, parent);
+            return parent.replace(epoch, parentNew, plugin);
         }
         assert(peers.length === max);
         /**
@@ -87,7 +88,9 @@ class BTree extends Tree {
         }
         peersMove.push(sibling);
         const parentNew = new this.constructor(epoch, peersStay, null);
+        plugin?.align(parentNew, parent);
         const nodeNew = new this.constructor(epoch, peersMove, sibling);
+        plugin?.align(nodeNew, parent);
         return parent.addSibling(epoch, nodeNew, parentNew);
     }
 
@@ -108,7 +111,8 @@ class BTree extends Tree {
             return sibling;
         } else if (grandparent === null || siblings.length >= min) {
             const parentNew = new this.constructor(epoch, siblings, nodeReplace);
-            return parent.replace(epoch, parentNew);
+            plugin?.align(parentNew, parent);
+            return parent.replace(epoch, parentNew, plugin);
         }
         assert(siblings.length === min-1);
         /**
@@ -141,6 +145,7 @@ class BTree extends Tree {
                 if (parentSiblingTry.children.length <= max - min + 1) {
                     parentSibling = parentSiblingTry;
                     merging = true;
+                    break;
                 }
             }
             if (parentSibling === null) {
@@ -172,14 +177,18 @@ class BTree extends Tree {
             }
             const siblingsNew = [].concat(cousinsMove, siblings);
             const parentNew = new this.constructor(epoch, siblingsNew, nodeReplace);
+            plugin?.align(parentNew, parentSibling);
             const parentSiblingNew = new this.constructor(epoch, cousinsStay, null);
+            plugin?.align(parentSiblingNew, parentSibling);
             const parentPeers = replace(replace(grandparent.children, parent, parentNew), parentSibling, parentSiblingNew);
             const grandparentNew = new this.constructor(epoch, parentPeers, parentNew);
-            return grandparent.replace(epoch, grandparentNew);
+            plugin?.align(grandparentNew, grandparent);
+            return grandparent.replace(epoch, grandparentNew, plugin);
         }
         assert(parentSibling.children.length <= max - min + 1);
         const cousinsNew = [].concat(parentSibling.children, siblings);
         const parentSiblingNew = new this.constructor(epoch, cousinsNew, nodeReplace);
+        plugin?.align(parentSiblingNew, parentSibling);
         return parent.removeSelf(epoch, hintParent, parentSibling, parentSiblingNew);
     }
 

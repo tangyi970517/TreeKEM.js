@@ -4,6 +4,7 @@ const testTree = (TreeType, n, T, isFast = true, verbose = 0) => {
     let epoch = 1;
     let tree = TreeType.init(n, epoch);
     if (verbose >= 3) tree.print();
+    if (verbose >= 3) tree.B?.print?.();
     const leaves = [];
     for (const leaf of tree.getLeaves(true)) {
         leaf.data.name = ['init', leaves.length];
@@ -23,6 +24,7 @@ const testTree = (TreeType, n, T, isFast = true, verbose = 0) => {
                 if (verbose >= 1) console.log('add', leafNew.info, 'by', leafHint.info, 'at', t, '@', epoch);
                 tree = tree.add(epoch, leafNew, leafHint);
                 if (verbose >= 3) tree.print();
+                if (verbose >= 3) tree.B?.print?.();
                 assert(tree.getTrace() === leafNew);
                 assert(tree.epoch == epoch);
             } break;
@@ -37,6 +39,7 @@ const testTree = (TreeType, n, T, isFast = true, verbose = 0) => {
                 if (verbose >= 1) console.log('remove', leafOld.info, 'by', leafHint.info, 'at', t, '@', epoch);
                 tree = tree.remove(epoch, leafOld, leafHint);
                 if (verbose >= 3) tree.print();
+                if (verbose >= 3) tree.B?.print?.();
                 assert(tree.epoch <= epoch);
             } break;
         }
@@ -53,6 +56,7 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
     let epoch = 1;
     let tree = TreeType.init(randint(1, n+1), epoch);
     if (verbose >= 3) tree.print();
+    if (verbose >= 3) tree.B?.print?.();
     const leaves = [];
     for (const leaf of tree.getLeaves(true)) {
         leaf.data.name = ['init', leaves.length];
@@ -72,6 +76,7 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
             if (verbose >= 2) console.log('add', leafNew.info, 'by', leafHint.info, 'at', t, ':', i, '@', epoch);
             tree = tree.add(epoch, leafNew, leafHint);
             if (verbose >= 3) tree.print();
+            if (verbose >= 3) tree.B?.print?.();
             assert(tree.getTrace() === leafNew);
             assert(tree.epoch == epoch);
             if (!isFast) for (const leaf of leaves) {
@@ -88,6 +93,7 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
             if (verbose >= 2) console.log('remove', leafOld.info, 'by', leafHint.info, 'at', t, ':', i, '@', epoch);
             tree = tree.remove(epoch, leafOld, leafHint);
             if (verbose >= 3) tree.print();
+            if (verbose >= 3) tree.B?.print?.();
             assert(tree.epoch <= epoch);
             if (!isFast) for (const leaf of leaves) {
                 assert(leaf.getRoot(epoch, true) === tree);
