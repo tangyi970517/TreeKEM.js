@@ -1,5 +1,6 @@
 import {assert} from '../utils.js';
-import {BinaryTree, BTreeEnums, makeBTree} from './mod.js';
+import {BinaryTree} from './baseTree.js';
+import {BTreeEnums, makeBTree} from './BTree.js';
 
 export
 const LLRBTreeEnums = {
