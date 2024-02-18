@@ -97,6 +97,12 @@ class Tree {
         }
         return this.parentHistory[this.indexOfEpoch(epoch)][1];
     }
+    unsetParent(epoch, parent) {
+        const i = this.parentHistory.findIndex(([e, p]) => e === epoch && p === parent);
+        assert(i >= 0);
+        this.parentHistory.splice(i, 1);
+        return this;
+    }
 
     getRoot(epoch, caching = false) {
         if (caching) {
@@ -177,9 +183,9 @@ class Tree {
         }
         for (const child of this.children) {
             child.clearTill(epochNew, rootNew);
+            child.unsetParent(this.epoch, this);
         }
         this.children.length = 0; // clear array
-        this.parentHistory.length = 0; // clear array
     }
 
     get info() {
