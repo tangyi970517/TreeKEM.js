@@ -9,12 +9,9 @@ class CounterCrypto {
         return this.counts;
     }
 
-    random(k = null) {
+    random() {
         ++this.counts.random;
-        if (k === null) {
-            return 'r';
-        }
-        return Array(k).fill('r');
+        return 'r';
     }
 
     PRG(seed, k) {

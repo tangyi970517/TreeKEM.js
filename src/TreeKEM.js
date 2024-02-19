@@ -67,11 +67,10 @@ const skeletonGen = function * (root, epoch, skeletonExtra, region, crypto) {
     let seed = null;
     if (isInRegion) {
         let secret;
-        if (seedTrace) {
-            [seed, secret] = crypto.PRG(seedTrace, 2);
-        } else {
-            [seed, secret] = crypto.random(2);
+        if (!seedTrace) {
+            seedTrace = crypto.random();
         }
+        [seed, secret] = crypto.PRG(seedTrace, 2);
         [root.data.pk, root.data.sk] = crypto.Gen(secret);
         yield [root, seedTrace, childTrace];
     }
