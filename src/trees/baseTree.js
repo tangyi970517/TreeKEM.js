@@ -1,4 +1,4 @@
-import {assert, range, sum, replace, randomChoice} from '../utils.js';
+import {assert, range, randint, sum, coalesce, replace, randomChoice} from '../utils.js';
 
 class Tree {
     constructor(epoch, children = [], childTrace = null) {
@@ -28,6 +28,8 @@ class Tree {
         this.childTrace = childTrace;
 
         this.data = {};
+
+        this.debug = randint(1e8);
     }
 
     get isLeaf() {
@@ -120,9 +122,9 @@ class Tree {
             return this;
         }
         if (caching) {
-            return (this._rootCache = parent.getRoot(epoch));
+            return (this._rootCache = parent.getRoot(epoch, true));
         }
-        return parent.getRoot(epoch);
+        return parent.getRoot(epoch, false);
     }
     * getPath(epoch, includingSelf = true) {
         if (includingSelf) {
@@ -189,7 +191,7 @@ class Tree {
     }
 
     get info() {
-        return [this.epoch, this.data];
+        return [this.epoch, this.data, this.debug];
     }
     print(hasNextList = [], Width = 2) {
         console.log([
@@ -204,7 +206,71 @@ class Tree {
 }
 
 export
-class BinaryTree extends Tree {
+class SparseTree extends Tree {
+    constructor(epoch, children, childTrace) {
+        super(epoch, children, childTrace);
+
+        if (this.isLeaf) {
+            this.sizeLeafRemoved = 0;
+            this.firstRemoved = null;
+        } else {
+            this.sizeLeafRemoved = sum(this.children.map(child => child.sizeLeafRemoved));
+            this.firstRemoved = coalesce(this.children.map(child => child.firstRemoved));
+        }
+        assert((this.sizeLeafRemoved === 0) === (this.firstRemoved === null));
+    }
+    static newRemoved(epoch) {
+        const node = new this(epoch);
+        node.sizeLeafRemoved = 1;
+        node.firstRemoved = node;
+        return node;
+    }
+
+    get info() {
+        return [this.isAllRemoved ? '∅' : '', ...super.info];
+    }
+
+    get isAllRemoved() {
+        return this.sizeLeafRemoved === this.sizeLeaf;
+    }
+    getRandomRemoved() {
+        if (this.sizeLeafRemoved === 0) {
+            return null;
+        }
+        if (this.isLeaf) {
+            return this;
+        }
+        return randomChoice(this.children, 'sizeLeafRemoved', this.sizeLeafRemoved).getRandomRemoved();
+    }
+    getClosestRemoved(epoch) {
+        for (const node of this.getPath(epoch)) {
+            if (node.firstRemoved !== null) {
+                return node.firstRemoved;
+            }
+        }
+        return null;
+    }
+
+    add(epoch, leaf, hint = null) {
+        if (this.sizeLeafRemoved === 0) {
+            throw new TypeError('generic add infeasible');
+        }
+        assert(leaf.isLeaf && leaf.getRoot(epoch) !== this);
+        assert(hint === null || /* hint.isLeaf && */ hint.getRoot(epoch) === this);
+        const leafRemoved = hint?.getClosestRemoved(epoch) ?? this.getRandomRemoved();
+        assert(leafRemoved !== null);
+        return leafRemoved.replace(epoch, leaf);
+    }
+
+    remove(epoch, leaf, _hint = null) {
+        assert(leaf.isLeaf && leaf.getRoot(epoch) === this);
+        const leafRemoved = this.constructor.newRemoved(epoch);
+        return leaf.replace(epoch, leafRemoved);
+    }
+}
+
+export
+class BinaryTree extends SparseTree {
     constructor(epoch, children, childTrace) {
         super(epoch, children, childTrace);
         assert(this.isLeaf || this.children.length === 2);

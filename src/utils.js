@@ -26,11 +26,19 @@ export
 const sum = (list, init = 0) => list.reduce((s, a) => s + a, init);
 export
 const prod = (list, init = 1) => list.reduce((p, a) => p * a, init);
+export
+const conjunct = (list, init = true) => list.reduce((b, a) => b && a, init);
+export
+const disjunct = (list, init = false) => list.reduce((b, a) => b || a, init);
+export
+const coalesce = (list, init = null) => list.reduce((o, a) => o ?? a, init);
 
 export
 const replace = (list, itemOld, ...itemsNew) => {
     const i = list.indexOf(itemOld);
     assert(i >= 0, 'replace not found');
+    const j = list.lastIndexOf(itemOld);
+    assert(i === j, 'replace ambiguous');
     return list.toSpliced(i, 1, ...itemsNew);
 };
 

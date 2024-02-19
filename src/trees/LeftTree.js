@@ -1,4 +1,4 @@
-import {assert, replace, randomChoice} from '../utils.js';
+import {assert, randint} from '../utils.js';
 import {BinaryTree} from './baseTree.js';
 
 export
@@ -40,54 +40,18 @@ class LeftTree extends BinaryTree {
 
         if (this.isLeaf) {
             this.isPerfect = true;
-            this.sizeRemoved = 0;
-            this.leftmostRemoved = null;
         } else {
             assert(this.rawL.isPerfect);
             assert(this.rawR.height <= this.rawL.height);
             this.isPerfect = this.rawR.isPerfect && this.rawR.height === this.rawL.height;
-            this.sizeRemoved = this.rawL.sizeRemoved + this.rawR.sizeRemoved;
-            this.leftmostRemoved = this.rawL.leftmostRemoved ?? this.rawR.leftmostRemoved;
         }
-        assert((this.sizeRemoved === 0) === (this.leftmostRemoved === null));
-    }
-    static newRemoved(epoch) {
-        const node = new this(epoch);
-        node.sizeRemoved = 1;
-        node.leftmostRemoved = node;
-        return node;
-    }
-
-    get isAllRemoved() {
-        return this.sizeRemoved === this.sizeLeaf;
-    }
-    get info() {
-        return [this.isAllRemoved ? '∅' : '', this.epoch, this.data];
-    }
-
-    getClosestRemoved(epoch) {
-        for (const node of this.getPath(epoch)) {
-            if (node.leftmostRemoved !== null) {
-                return node.leftmostRemoved;
-            }
-        }
-        return null;
-    }
-    getRandomRemoved() {
-        if (this.sizeRemoved === 0) {
-            return null;
-        }
-        if (this.isLeaf) {
-            return this;
-        }
-        return randomChoice(this.children, 'sizeRemoved', this.sizeRemoved).getRandomRemoved();
     }
 
     static init(n, epoch = 0) {
         assert(Number.isInteger(n) && n > 0);
-        return this.initAny(epoch, n);
+        return this.initLeft(epoch, n);
     }
-    static initAny(epoch, n) {
+    static initLeft(epoch, n) {
         if (n === 1) {
             return new this(epoch);
         }
@@ -98,7 +62,7 @@ class LeftTree extends BinaryTree {
         assert(nL < n);
         const children = [
             this.initPerfect(epoch, h),
-            this.initAny(epoch, n - nL),
+            this.initLeft(epoch, n - nL),
         ];
         return new this(epoch, children, children[0]); // arbitrary trace
     }
@@ -142,29 +106,28 @@ class LeftTree extends BinaryTree {
     add(epoch, leaf, hint = null) {
         assert(leaf.isLeaf && leaf.getRoot(epoch) !== this);
         assert(hint === null || /* hint.isLeaf && */ hint.getRoot(epoch) === this);
-        let leafRemoved = null;
         switch (position) {
             case 'greedy': {
-                leafRemoved = hint?.getClosestRemoved(epoch);
+                if (this.sizeLeafRemoved > 0) {
+                    return super.add(epoch, leaf, hint);
+                }
             } break;
             case 'random': {
-                leafRemoved = this.getRandomRemoved();
+                if (this.sizeLeafRemoved > 0 && randint(this.sizeLeafRemoved+1) > 0) { // +1 for the chance to append
+                    return super.add(epoch, leaf, null);
+                }
             } break;
-            case 'append': {} break;
-        }
-        if (leafRemoved) {
-            return leafRemoved.replace(epoch, leaf);
         }
         return this.append(epoch, leaf);
     }
 
     remove(epoch, leaf, _hint) {
-        const leafRemoved = this.constructor.newRemoved(epoch);
-        const rootNew = leaf.replace(epoch, leafRemoved);
+        assert(leaf.isLeaf && leaf.getRoot(epoch) === this);
+        const rootNew = super.remove(epoch, leaf);
         switch (truncate) {
             case 'truncate': {
                 const rootTruncate = rootNew.truncate(epoch);
-                assert(rootTruncate, 'attempting to remove the last node');
+                assert(rootTruncate !== null, 'attempting to remove the last node');
                 if (rootTruncate.epoch < epoch) {
                     rootTruncate.setParent(epoch, null);
                 }
