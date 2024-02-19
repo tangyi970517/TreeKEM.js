@@ -1,302 +1,302 @@
 import {assert, range, randint, sum, coalesce, replace, randomChoice} from '../utils.js';
 
 class Tree {
-    constructor(epoch, children = [], childTrace = null) {
-        this.epoch = epoch;
+	constructor(epoch, children = [], childTrace = null) {
+		this.epoch = epoch;
 
-        this.parentHistory = [[-Infinity, null]];
-        this.children = children;
-        for (const child of children) {
-            child.setParent(epoch, this);
-        }
+		this.parentHistory = [[-Infinity, null]];
+		this.children = children;
+		for (const child of children) {
+			child.setParent(epoch, this);
+		}
 
-        if (this.isLeaf) {
-            this.height = 0;
-            this.size = 1;
-            this.sizeLeaf = 1;
-        } else {
-            this.height = Math.max(...this.children.map(child => child.height)) + 1;
-            this.size = sum(this.children.map(child => child.size), 1);
-            this.sizeLeaf = sum(this.children.map(child => child.sizeLeaf));
-        }
+		if (this.isLeaf) {
+			this.height = 0;
+			this.size = 1;
+			this.sizeLeaf = 1;
+		} else {
+			this.height = Math.max(...this.children.map(child => child.height)) + 1;
+			this.size = sum(this.children.map(child => child.size), 1);
+			this.sizeLeaf = sum(this.children.map(child => child.sizeLeaf));
+		}
 
-        if (childTrace === null) {
-            assert(this.children.every(child => child.epoch < epoch));
-        } else {
-            assert(this.children.includes(childTrace) && childTrace.epoch === epoch);
-        }
-        this.childTrace = childTrace;
+		if (childTrace === null) {
+			assert(this.children.every(child => child.epoch < epoch));
+		} else {
+			assert(this.children.includes(childTrace) && childTrace.epoch === epoch);
+		}
+		this.childTrace = childTrace;
 
-        this.data = {};
+		this.data = {};
 
-        this.debug = randint(1e8);
-    }
+		this.debug = randint(1e8);
+	}
 
-    get isLeaf() {
-        return this.children.length === 0;
-    }
-    * getLeaves(acknowledgingComplexity = false) {
-        assert(acknowledgingComplexity, 'O(n) time complexity');
-        if (this.isLeaf) {
-            yield this;
-            return;
-        }
-        for (const child of this.children) {
-            yield * child.getLeaves(true);
-        }
-    }
-    getRandomLeaf() {
-        if (this.isLeaf) {
-            return this;
-        }
-        return randomChoice(this.children, 'sizeLeaf', this.sizeLeaf).getRandomLeaf();
-    }
+	get isLeaf() {
+		return this.children.length === 0;
+	}
+	* getLeaves(acknowledgingComplexity = false) {
+		assert(acknowledgingComplexity, 'O(n) time complexity');
+		if (this.isLeaf) {
+			yield this;
+			return;
+		}
+		for (const child of this.children) {
+			yield * child.getLeaves(true);
+		}
+	}
+	getRandomLeaf() {
+		if (this.isLeaf) {
+			return this;
+		}
+		return randomChoice(this.children, 'sizeLeaf', this.sizeLeaf).getRandomLeaf();
+	}
 
-    getTrace() {
-        if (this.childTrace === null) {
-            return this;
-        }
-        return this.childTrace.getTrace();
-    }
+	getTrace() {
+		if (this.childTrace === null) {
+			return this;
+		}
+		return this.childTrace.getTrace();
+	}
 
-    /**
-     *
-     * binary search for the last `<= epoch` index
-     * - optimize by searching from the end in the meanwhile, to accelerate the most common use cases
-     *   (e.g. inserting/finding the latest epoch)
-     *
-     */
-    indexOfEpoch(epoch) {
-        let l = 0, r = this.parentHistory.length;
-        let i = this.parentHistory.length-1;
-        while (l + 1 < r) {
-            const m = l + Math.floor((r - l) / 2); // r - l > 1, so >= 2
-            if (this.parentHistory[m][0] <= epoch) {
-                l = m;
-            } else {
-                r = m;
-            }
-            assert(i >= 0);
-            if (this.parentHistory[i][0] <= epoch) {
-                return i;
-            }
-            --i;
-        }
-        return l;
-    }
-    setParent(epoch, parent) {
-        assert(epoch >= this.epoch, `setting parent for early epoch ${epoch} < ${this.epoch}`);
-        if (parent !== null) {
-            assert(epoch === parent.epoch, `setting parent for early/late epoch ${epoch} ≠ ${parent.epoch}`);
-        }
-        const i = this.indexOfEpoch(epoch);
-        this.parentHistory.splice(i+1, 0, [epoch, parent]);
-        return this;
-    }
-    getParent(epoch) {
-        if (this.parentHistory.length === 0) {
-            return null;
-        }
-        return this.parentHistory[this.indexOfEpoch(epoch)][1];
-    }
-    unsetParent(epoch, parent) {
-        const i = this.parentHistory.findIndex(([e, p]) => e === epoch && p === parent);
-        assert(i >= 0);
-        this.parentHistory.splice(i, 1);
-        return this;
-    }
+	/**
+	 *
+	 * binary search for the last `<= epoch` index
+	 * - optimize by searching from the end in the meanwhile, to accelerate the most common use cases
+	 *   (e.g. inserting/finding the latest epoch)
+	 *
+	 */
+	indexOfEpoch(epoch) {
+		let l = 0, r = this.parentHistory.length;
+		let i = this.parentHistory.length-1;
+		while (l + 1 < r) {
+			const m = l + Math.floor((r - l) / 2); // r - l > 1, so >= 2
+			if (this.parentHistory[m][0] <= epoch) {
+				l = m;
+			} else {
+				r = m;
+			}
+			assert(i >= 0);
+			if (this.parentHistory[i][0] <= epoch) {
+				return i;
+			}
+			--i;
+		}
+		return l;
+	}
+	setParent(epoch, parent) {
+		assert(epoch >= this.epoch, `setting parent for early epoch ${epoch} < ${this.epoch}`);
+		if (parent !== null) {
+			assert(epoch === parent.epoch, `setting parent for early/late epoch ${epoch} ≠ ${parent.epoch}`);
+		}
+		const i = this.indexOfEpoch(epoch);
+		this.parentHistory.splice(i+1, 0, [epoch, parent]);
+		return this;
+	}
+	getParent(epoch) {
+		if (this.parentHistory.length === 0) {
+			return null;
+		}
+		return this.parentHistory[this.indexOfEpoch(epoch)][1];
+	}
+	unsetParent(epoch, parent) {
+		const i = this.parentHistory.findIndex(([e, p]) => e === epoch && p === parent);
+		assert(i >= 0);
+		this.parentHistory.splice(i, 1);
+		return this;
+	}
 
-    getRoot(epoch, caching = false) {
-        if (caching) {
-            if (epoch === this._epochRootCache && this._rootCache !== null) {
-                return this._rootCache;
-            }
-            this._epochRootCache = epoch;
-            this._rootCache = null;
-        }
-        const parent = this.getParent(epoch);
-        if (parent === null) {
-            if (caching) {
-                return (this._rootCache = this);
-            }
-            return this;
-        }
-        if (caching) {
-            return (this._rootCache = parent.getRoot(epoch, true));
-        }
-        return parent.getRoot(epoch, false);
-    }
-    * getPath(epoch, includingSelf = true) {
-        if (includingSelf) {
-            yield this;
-        }
-        const parent = this.getParent(epoch);
-        if (parent === null) {
-            return;
-        }
-        yield * parent.getPath(epoch);
-    }
+	getRoot(epoch, caching = false) {
+		if (caching) {
+			if (epoch === this._epochRootCache && this._rootCache !== null) {
+				return this._rootCache;
+			}
+			this._epochRootCache = epoch;
+			this._rootCache = null;
+		}
+		const parent = this.getParent(epoch);
+		if (parent === null) {
+			if (caching) {
+				return (this._rootCache = this);
+			}
+			return this;
+		}
+		if (caching) {
+			return (this._rootCache = parent.getRoot(epoch, true));
+		}
+		return parent.getRoot(epoch, false);
+	}
+	* getPath(epoch, includingSelf = true) {
+		if (includingSelf) {
+			yield this;
+		}
+		const parent = this.getParent(epoch);
+		if (parent === null) {
+			return;
+		}
+		yield * parent.getPath(epoch);
+	}
 
-    getSiblings(epoch) {
-        const parent = this.getParent(epoch);
-        if (parent === null) {
-            return [];
-        }
-        return replace(parent.children, this);
-    }
-    * getCopath(epoch) {
-        for (const node of this.getPath(epoch)) {
-            yield * node.getSiblings(epoch);
-        }
-    }
+	getSiblings(epoch) {
+		const parent = this.getParent(epoch);
+		if (parent === null) {
+			return [];
+		}
+		return replace(parent.children, this);
+	}
+	* getCopath(epoch) {
+		for (const node of this.getPath(epoch)) {
+			yield * node.getSiblings(epoch);
+		}
+	}
 
-    replace(epoch, node, plugin = null) {
-        const parent = this.getParent(epoch);
-        if (parent === null) {
-            return node;
-        }
-        const parentNew = new this.constructor(epoch, replace(parent.children, this, node), node);
-        plugin?.align(parentNew, parent);
-        return parent.replace(epoch, parentNew);
-    }
+	replace(epoch, node, plugin = null) {
+		const parent = this.getParent(epoch);
+		if (parent === null) {
+			return node;
+		}
+		const parentNew = new this.constructor(epoch, replace(parent.children, this, node), node);
+		plugin?.align(parentNew, parent);
+		return parent.replace(epoch, parentNew);
+	}
 
-    static init(n, epochInit = 0) {
-        assert(Number.isInteger(n) && n > 0);
-        const leafInit = new this(epochInit - (n-1));
-        let root = leafInit;
-        for (const i of range(1, n)) {
-            const epoch = epochInit - (n-1 - i);
-            root = root.add(epoch, new this(epoch), leafInit);
-        }
-        return root;
-    }
+	static init(n, epochInit = 0) {
+		assert(Number.isInteger(n) && n > 0);
+		const leafInit = new this(epochInit - (n-1));
+		let root = leafInit;
+		for (const i of range(1, n)) {
+			const epoch = epochInit - (n-1 - i);
+			root = root.add(epoch, new this(epoch), leafInit);
+		}
+		return root;
+	}
 
-    add(_epoch, _node, _hint = null) {
-        assert(false, 'abstract add method');
-    }
+	add(_epoch, _node, _hint = null) {
+		assert(false, 'abstract add method');
+	}
 
-    remove(_epoch, _node, _hint = null) {
-        assert(false, 'abstract remove method');
-    }
+	remove(_epoch, _node, _hint = null) {
+		assert(false, 'abstract remove method');
+	}
 
-    clearTill(epochNew, rootNew) {
-        if (this.getRoot(epochNew, true) === rootNew) {
-            return;
-        }
-        for (const child of this.children) {
-            child.clearTill(epochNew, rootNew);
-            child.unsetParent(this.epoch, this);
-        }
-        this.children.length = 0; // clear array
-    }
+	clearTill(epochNew, rootNew) {
+		if (this.getRoot(epochNew, true) === rootNew) {
+			return;
+		}
+		for (const child of this.children) {
+			child.clearTill(epochNew, rootNew);
+			child.unsetParent(this.epoch, this);
+		}
+		this.children.length = 0; // clear array
+	}
 
-    get info() {
-        return [this.epoch, this.data, this.debug];
-    }
-    print(hasNextList = [], Width = 2) {
-        console.log([
-            ...hasNextList.slice(0, -1).map(hasNext => (hasNext ? '│' : ' ') + Array(Width-1).fill(' ').join('')),
-            ...hasNextList.slice(-1).map(hasNextSelf => (hasNextSelf ? '├' : '└') + Array(Width-1).fill('─').join('')),
-            this.children.length > 0 ? '┮' : '╼',
-        ].join(''), ...this.info);
-        for (const [i, child] of this.children.entries()) {
-            child.print(hasNextList.concat(i < this.children.length-1), Width);
-        }
-    };
+	get info() {
+		return [this.epoch, this.data, this.debug];
+	}
+	print(hasNextList = [], Width = 2) {
+		console.log([
+			...hasNextList.slice(0, -1).map(hasNext => (hasNext ? '│' : ' ') + Array(Width-1).fill(' ').join('')),
+			...hasNextList.slice(-1).map(hasNextSelf => (hasNextSelf ? '├' : '└') + Array(Width-1).fill('─').join('')),
+			this.children.length > 0 ? '┮' : '╼',
+		].join(''), ...this.info);
+		for (const [i, child] of this.children.entries()) {
+			child.print(hasNextList.concat(i < this.children.length-1), Width);
+		}
+	};
 }
 
 export
 class SparseTree extends Tree {
-    constructor(epoch, children, childTrace) {
-        super(epoch, children, childTrace);
+	constructor(epoch, children, childTrace) {
+		super(epoch, children, childTrace);
 
-        if (this.isLeaf) {
-            this.sizeLeafRemoved = 0;
-            this.firstRemoved = null;
-        } else {
-            this.sizeLeafRemoved = sum(this.children.map(child => child.sizeLeafRemoved));
-            this.firstRemoved = coalesce(this.children.map(child => child.firstRemoved));
-        }
-        assert((this.sizeLeafRemoved === 0) === (this.firstRemoved === null));
-    }
-    static newRemoved(epoch) {
-        const node = new this(epoch);
-        node.sizeLeafRemoved = 1;
-        node.firstRemoved = node;
-        return node;
-    }
+		if (this.isLeaf) {
+			this.sizeLeafRemoved = 0;
+			this.firstRemoved = null;
+		} else {
+			this.sizeLeafRemoved = sum(this.children.map(child => child.sizeLeafRemoved));
+			this.firstRemoved = coalesce(this.children.map(child => child.firstRemoved));
+		}
+		assert((this.sizeLeafRemoved === 0) === (this.firstRemoved === null));
+	}
+	static newRemoved(epoch) {
+		const node = new this(epoch);
+		node.sizeLeafRemoved = 1;
+		node.firstRemoved = node;
+		return node;
+	}
 
-    get info() {
-        return [this.isAllRemoved ? '∅' : '', ...super.info];
-    }
+	get info() {
+		return [this.isAllRemoved ? '∅' : '', ...super.info];
+	}
 
-    get isAllRemoved() {
-        return this.sizeLeafRemoved === this.sizeLeaf;
-    }
-    getRandomRemoved() {
-        if (this.sizeLeafRemoved === 0) {
-            return null;
-        }
-        if (this.isLeaf) {
-            return this;
-        }
-        return randomChoice(this.children, 'sizeLeafRemoved', this.sizeLeafRemoved).getRandomRemoved();
-    }
-    getClosestRemoved(epoch) {
-        for (const node of this.getPath(epoch)) {
-            if (node.firstRemoved !== null) {
-                return node.firstRemoved;
-            }
-        }
-        return null;
-    }
+	get isAllRemoved() {
+		return this.sizeLeafRemoved === this.sizeLeaf;
+	}
+	getRandomRemoved() {
+		if (this.sizeLeafRemoved === 0) {
+			return null;
+		}
+		if (this.isLeaf) {
+			return this;
+		}
+		return randomChoice(this.children, 'sizeLeafRemoved', this.sizeLeafRemoved).getRandomRemoved();
+	}
+	getClosestRemoved(epoch) {
+		for (const node of this.getPath(epoch)) {
+			if (node.firstRemoved !== null) {
+				return node.firstRemoved;
+			}
+		}
+		return null;
+	}
 
-    add(epoch, leaf, hint = null) {
-        if (this.sizeLeafRemoved === 0) {
-            throw new TypeError('generic add infeasible');
-        }
-        assert(leaf.isLeaf && leaf.getRoot(epoch) !== this);
-        assert(hint === null || /* hint.isLeaf && */ hint.getRoot(epoch) === this);
-        const leafRemoved = hint?.getClosestRemoved(epoch) ?? this.getRandomRemoved();
-        assert(leafRemoved !== null);
-        return leafRemoved.replace(epoch, leaf);
-    }
+	add(epoch, leaf, hint = null) {
+		if (this.sizeLeafRemoved === 0) {
+			throw new TypeError('generic add infeasible');
+		}
+		assert(leaf.isLeaf && leaf.getRoot(epoch) !== this);
+		assert(hint === null || /* hint.isLeaf && */ hint.getRoot(epoch) === this);
+		const leafRemoved = hint?.getClosestRemoved(epoch) ?? this.getRandomRemoved();
+		assert(leafRemoved !== null);
+		return leafRemoved.replace(epoch, leaf);
+	}
 
-    remove(epoch, leaf, _hint = null) {
-        assert(leaf.isLeaf && leaf.getRoot(epoch) === this);
-        const leafRemoved = this.constructor.newRemoved(epoch);
-        return leaf.replace(epoch, leafRemoved);
-    }
+	remove(epoch, leaf, _hint = null) {
+		assert(leaf.isLeaf && leaf.getRoot(epoch) === this);
+		const leafRemoved = this.constructor.newRemoved(epoch);
+		return leaf.replace(epoch, leafRemoved);
+	}
 }
 
 export
 class BinaryTree extends SparseTree {
-    constructor(epoch, children, childTrace) {
-        super(epoch, children, childTrace);
-        assert(this.isLeaf || this.children.length === 2);
-    }
+	constructor(epoch, children, childTrace) {
+		super(epoch, children, childTrace);
+		assert(this.isLeaf || this.children.length === 2);
+	}
 
-    get childL() {
-        if (this.isLeaf) {
-            return null;
-        }
-        return this.children[0];
-    }
-    get childR() {
-        if (this.isLeaf) {
-            return null;
-        }
-        return this.children[1];
-    }
+	get childL() {
+		if (this.isLeaf) {
+			return null;
+		}
+		return this.children[0];
+	}
+	get childR() {
+		if (this.isLeaf) {
+			return null;
+		}
+		return this.children[1];
+	}
 
-    getTheSibling(epoch) {
-        const siblings = this.getSiblings(epoch);
-        if (siblings.length === 0) {
-            return null;
-        }
-        assert(siblings.length === 1);
-        return siblings[0];
-    }
+	getTheSibling(epoch) {
+		const siblings = this.getSiblings(epoch);
+		if (siblings.length === 0) {
+			return null;
+		}
+		assert(siblings.length === 1);
+		return siblings[0];
+	}
 }
 
 export default Tree;
