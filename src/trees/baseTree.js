@@ -87,7 +87,7 @@ class Tree {
 	setParent(epoch, parent) {
 		assert(epoch >= this.epoch, `setting parent for early epoch ${epoch} < ${this.epoch}`);
 		if (parent !== null) {
-			assert(epoch === parent.epoch, `setting parent for early/late epoch ${epoch} ≠ ${parent.epoch}`);
+			assert(epoch === parent.epoch, `set as parent for different epoch ${epoch} ≠ ${parent.epoch}`);
 		}
 		const i = this.indexOfEpoch(epoch);
 		this.parentHistory.splice(i+1, 0, [epoch, parent]);
@@ -253,7 +253,7 @@ class SparseTree extends Tree {
 
 	add(epoch, leaf, hint = null) {
 		if (this.sizeLeafRemoved === 0) {
-			throw new TypeError('generic add infeasible');
+			throw new TypeError('generic add method infeasible');
 		}
 		assert(leaf.isLeaf && leaf.getRoot(epoch) !== this);
 		assert(hint === null || /* hint.isLeaf && */ hint.getRoot(epoch) === this);
