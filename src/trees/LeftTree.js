@@ -1,5 +1,5 @@
 import {assert, randint} from '../utils.js';
-import {BinaryTree} from './baseTree.js';
+import {BinaryTree, BinarySparseTree} from './baseTree.js';
 
 export
 const LeftTreeEnums = {
@@ -19,6 +19,8 @@ export
 const makeLeftTree = (position = 'greedy', truncate = 'truncate') => {
 	assert(LeftTreeEnums.position.includes(position));
 	assert(LeftTreeEnums.truncate.includes(truncate));
+	const isLazy = truncate !== 'balance';
+	const BaseTree = isLazy ? BinarySparseTree : BinaryTree;
 	return (
 
 /**
@@ -32,7 +34,7 @@ const makeLeftTree = (position = 'greedy', truncate = 'truncate') => {
  * [#leaf in perfect binary tree] = 2^floor(log2[#leaf])
  *
  */
-class LeftTree extends BinaryTree {
+class LeftTree extends BaseTree {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
 

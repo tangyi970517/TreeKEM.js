@@ -1,5 +1,5 @@
 import {assert, range, replace} from '../utils.js';
-import Tree from './baseTree.js';
+import Tree, {SparseTree} from './baseTree.js';
 
 export
 const BTreeEnums = {
@@ -7,15 +7,22 @@ const BTreeEnums = {
 		'greedy',
 		'random',
 	],
+	remove: [
+		'balance',
+		'lazy',
+	],
 };
 
 export
-const makeBTree = (m = 3, position = 'greedy', plugin = null) => {
+const makeBTree = (m = 3, position = 'greedy', removeStrategy = 'balance', plugin = null) => {
 	assert(Number.isInteger(m) && m >= 3);
 	assert(BTreeEnums.position.includes(position));
+	assert(BTreeEnums.remove.includes(removeStrategy));
 	const max = m, min = Math.ceil(m / 2);
+	const isLazy = removeStrategy === 'lazy';
+	const BaseTree = isLazy ? SparseTree : Tree;
 	return (
-class BTree extends Tree {
+class BTree extends BaseTree {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
 
@@ -195,6 +202,9 @@ class BTree extends Tree {
 	add(epoch, leaf, hint = null) {
 		assert(/* leaf.isLeaf && */ leaf.getRoot(epoch) !== this);
 		assert(hint === null || /* hint.isLeaf && */ hint.getRoot(epoch) === this);
+		if (isLazy && this.sizeLeafRemoved > 0) {
+			return super.add(epoch, leaf, hint);
+		}
 		let sibling;
 		switch (position) {
 			case 'greedy': {
@@ -210,6 +220,9 @@ class BTree extends Tree {
 	remove(epoch, leaf, hint = null) {
 		assert(/* leaf.isLeaf && */ leaf.getRoot(epoch) === this);
 		assert(hint === null || /* hint.isLeaf && */ hint.getRoot(epoch) === this);
+		if (isLazy) {
+			return super.remove(epoch, leaf);
+		}
 		return leaf.removeSelf(epoch, hint);
 	}
 }
@@ -217,9 +230,9 @@ class BTree extends Tree {
 };
 
 export
-const make23Tree = position => makeBTree(3, position);
+const make23Tree = (...options) => makeBTree(3, ...options);
 export
-const make234Tree = position => makeBTree(4, position);
+const make234Tree = (...options) => makeBTree(4, ...options);
 
 export
 const $23Tree = make23Tree();

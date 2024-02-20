@@ -1,5 +1,5 @@
 import {assert} from '../utils.js';
-import {BinaryTree} from './baseTree.js';
+import {BinaryTree, BinarySparseTree} from './baseTree.js';
 import {BTreeEnums, makeBTree} from './BTree.js';
 
 export
@@ -8,7 +8,7 @@ const LLRBTreeEnums = {
 		'normal',
 		'2-3',
 	],
-	position: BTreeEnums.position,
+	...BTreeEnums,
 };
 
 export
@@ -66,13 +66,14 @@ const BTreePluginLLRB = {
 };
 
 export
-const makeLLRBTree = (mode = 'normal', position = 'greedy') => {
+const makeLLRBTree = (mode = 'normal', position = 'greedy', removeStrategy = 'balance') => {
 	assert(LLRBTreeEnums.mode.includes(mode));
 	assert(LLRBTreeEnums.position.includes(position));
+	assert(LLRBTreeEnums.remove.includes(removeStrategy));
 	const m = mode === '2-3' ? 3 : 4;
 	//
 //
-class BTree extends makeBTree(m, position, BTreePluginLLRB) {
+class BTree extends makeBTree(m, position, 'balance', BTreePluginLLRB) {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
 		this.RB = null;
@@ -82,8 +83,10 @@ class BTree extends makeBTree(m, position, BTreePluginLLRB) {
 }
 //
 	//
+	const isLazy = removeStrategy === 'lazy';
+	const BaseTree = isLazy ? BinarySparseTree : BinaryTree;
 	return (
-class LLRBTree extends BinaryTree {
+class LLRBTree extends BaseTree {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
 
@@ -172,20 +175,26 @@ class LLRBTree extends BinaryTree {
 		return (node.RB = nodeRB);
 	}
 
-	static init(n, epoch) {
+	static init(n, epoch = 0) {
 		const node = BTree.init(n, epoch);
 		return this.isomorph(epoch, node);
 	}
 
-	add(epoch, leaf, hint) {
+	add(epoch, leaf, hint = null) {
 		const leafB = new BTree(epoch);
 		leaf.B = leafB;
 		leafB.RB = leaf;
+		if (isLazy && this.sizeLeafRemoved > 0) {
+			return super.add(epoch, leaf, hint);
+		}
 		const BNew = this.B.add(epoch, leafB, hint?.B);
 		return this.constructor.isomorph(epoch, BNew);
 	}
 
-	remove(epoch, leaf, hint) {
+	remove(epoch, leaf, hint = null) {
+		if (isLazy) {
+			return super.remove(epoch, leaf);
+		}
 		const BNew = this.B.remove(epoch, leaf.B, hint?.B);
 		const RBNew = this.constructor.isomorph(epoch, BNew);
 		if (RBNew.epoch < epoch) {
