@@ -99,24 +99,26 @@ class TreeKEM {
 	constructor() {
 		this.tree = null;
 		this.epoch = 0;
-		this.users = [];
+		this.users = new Map();
 
 		this.crypto = new Crypto();
 	}
 
-	init(pks, sk0) {
+	init(id_pks) {
 		++this.epoch;
-		const n = pks.length;
+		const n = id_pks.length;
 		assert(this.tree === null);
 		this.tree = TreeType.init(n, this.epoch);
 		for (const leaf of this.tree.getLeaves(true)) {
-			const i = this.users.length;
-			this.constructor.initData(leaf, i, pks[i], i === 0 ? sk0 : null);
-			this.users.push(leaf);
+			const i = this.users.size;
+			const [id, pk] = id_pks[i];
+			this.constructor.initData(leaf, id, pk);
+			this.users.set(id, leaf);
 		}
-		assert(this.users.length === n);
+		assert(this.users.size === n);
 
-		const ua = this.users[0];
+		const [a] = id_pks[0];
+		const ua = this.users.get(a);
 
 		const skeletonExtra = new Set();
 
@@ -137,12 +139,12 @@ class TreeKEM {
 	}
 
 	add(a, b, pk, clearingOldNodes = true) {
-		assert(a in this.users && b === this.users.length);
+		assert(this.users.has(a) && !this.users.has(b));
 		++this.epoch;
 		const leafNew = new TreeType(this.epoch);
 		this.constructor.initData(leafNew, b, pk);
-		this.users.push(leafNew);
-		const ua = this.users[a], ub = this.users[b];
+		this.users.set(b, leafNew);
+		const ua = this.users.get(a), ub = this.users.get(b);
 		const treeOld = this.tree;
 		this.tree = this.tree.add(this.epoch, ub, ua);
 		if (clearingOldNodes) {
@@ -160,10 +162,10 @@ class TreeKEM {
 	}
 
 	remove(a, b, clearingOldNodes = true) {
-		assert(a in this.users && b in this.users && b !== a);
+		assert(this.users.has(a) && this.users.has(b) && b !== a);
 		++this.epoch;
-		const ua = this.users[a], ub = this.users[b];
-		delete this.users[b];
+		const ua = this.users.get(a), ub = this.users.get(b);
+		this.users.delete(b);
 		const treeOld = this.tree;
 		this.tree = this.tree.remove(this.epoch, ub, ua);
 		if (clearingOldNodes) {
@@ -185,9 +187,9 @@ class TreeKEM {
 	}
 
 	update(b, a = b) {
-		assert(a in this.users && b in this.users);
+		assert(this.users.has(a) && this.users.has(b));
 		++this.epoch;
-		const ua = this.users[a], ub = this.users[b];
+		const ua = this.users.get(a), ub = this.users.get(b);
 
 		const skeletonExtra = new Set(ub.getPath(this.epoch));
 
