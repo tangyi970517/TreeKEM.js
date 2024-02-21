@@ -66,14 +66,15 @@ const BTreePluginLLRB = {
 };
 
 export
-const makeLLRBTree = (mode = 'normal', position = 'greedy', removeStrategy = 'balance') => {
+const makeLLRBTree = (mode = 'normal', position = 'greedy', removeStrategy = 'hint-merge-borrow') => {
 	assert(LLRBTreeEnums.mode.includes(mode));
 	assert(LLRBTreeEnums.position.includes(position));
 	assert(LLRBTreeEnums.remove.includes(removeStrategy));
 	const m = mode === '2-3' ? 3 : 4;
+	const removeStrategyNonlazy = {'lazy': 'hint-merge-borrow'}[removeStrategy] ?? removeStrategy;
 	//
 //
-class BTree extends makeBTree(m, position, 'balance', BTreePluginLLRB) {
+class BTree extends makeBTree(m, position, removeStrategyNonlazy, BTreePluginLLRB) {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
 		this.RB = null;

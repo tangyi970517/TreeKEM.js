@@ -8,17 +8,22 @@ const BTreeEnums = {
 		'random',
 	],
 	remove: [
-		'balance',
+		'hint-merge-borrow',
+		'hint-borrow-merge',
+		'merge-borrow',
+		'borrow-merge',
 		'lazy',
 	],
 };
 
 export
-const makeBTree = (m = 3, position = 'greedy', removeStrategy = 'balance', plugin = null) => {
+const makeBTree = (m = 3, position = 'greedy', removeStrategy = 'hint-merge-borrow', plugin = null) => {
 	assert(Number.isInteger(m) && m >= 3);
 	assert(BTreeEnums.position.includes(position));
 	assert(BTreeEnums.remove.includes(removeStrategy));
 	const max = m, min = Math.ceil(m / 2);
+	const isHintFirst = removeStrategy.startsWith('hint-');
+	const isMergeFirst = removeStrategy.endsWith('-borrow');
 	const isLazy = removeStrategy === 'lazy';
 	const BaseTree = isLazy ? SparseTree : Tree;
 	return (
@@ -144,20 +149,28 @@ class BTree extends BaseTree {
 		const hintParent = hint?.getParent(epoch);
 		assert((hint === null) === (hintParent === null));
 		let parentSibling = null, merging = null;
-		if (parentSiblings.includes(hintParent)) {
+		if (isHintFirst && parentSiblings.includes(hintParent)) {
 			parentSibling = hintParent;
-			merging = hintParent.children.length <= max - min + 1;
+			if (isMergeFirst) {
+				merging = hintParent.children.length <= max - min + 1;
+			} else {
+				merging = !(hintParent.children.length > min);
+			}
 		} else {
 			for (const parentSiblingTry of parentSiblings) {
-				if (parentSiblingTry.children.length <= max - min + 1) {
+				if (isMergeFirst && parentSiblingTry.children.length <= max - min + 1) {
 					parentSibling = parentSiblingTry;
 					merging = true;
+					break;
+				} else if (!isMergeFirst && parentSiblingTry.children.length > min) {
+					parentSibling = parentSiblingTry;
+					merging = false;
 					break;
 				}
 			}
 			if (parentSibling === null) {
 				parentSibling = parentSiblings[0]; // arbitrary sibling
-				merging = false;
+				merging = !isMergeFirst;
 			}
 		}
 		assert(parentSibling !== null);
