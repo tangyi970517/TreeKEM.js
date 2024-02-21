@@ -59,7 +59,7 @@ To remark, the "lazy remove" approach applies to arbitrary tree data structure; 
 
 Function `add(t: Tree, l: Leaf; h: Leaf?) -> Tree`:
 01. if there is no "removed" leaf in `t` then undefined
-    > This branch means the generic add operation is infeasible, and concrete tree data structure must give their own implementation for the add operation at least in this case.
+    > This branch means the generic add operation is infeasible, and a concrete tree data structure must give its own implementation for the add operation at least in this case.
 01. if `h ≠ null` then let `r` be an arbitrary (say, leftmost) closest "removed" leaf to `h`
 01. else let `r` be an arbitrary (say, random) "removed" leaf in `t`
 01. return `replace(r, l)`
@@ -95,7 +95,7 @@ Function `append(t: LBBT, l: Leaf) -> LBBT`:
 01. return `(tl, append(tr, l))`
 
 Function `truncate(t: LBBT) -> LBBT?`:
-> This function truncates a "sparse" tree with "removed" nodes, so that the right-most leaf is not "removed" (and non-"removed" leaves remain untouched).
+> This function truncates a tree with "removed" nodes, so that the rightmost leaf is not "removed" (and non-"removed" leaves remain untouched).
 01. if all leaves in `t` are "removed" then return `null`
 01. let `(tl, tr) := t`
 01. let `tr' := truncate(tr)`
@@ -126,7 +126,54 @@ do not `truncate` and return `t'` directly.
 
 #### Variant: balanced LBBT
 
-TBD.
+Our implementation of LBBT above is based on the generic "lazy" operations.
+Note that technically speaking, the tree is no longer worst-case *balanced* (i.e., height is logarithmic in the number of *true* leaves) by having lazily removed leaves.
+It is actually possible to get rid of the generic "lazy" operations and design a balanced mode for LBBT.
+In particular, `truncate` can only help remove a rightmost leaf, and we need an operation for removing node at arbitrary position.
+
+To better see the idea behind the new algorithm, consider the following view:
+an LBBT with `n` leaves is a "chain on the right" of perfect subtrees with respectively `2^h[1], …, 2^h[m]` leaves, corresponding to the binary expansion of `n` (and we order from the least significant power of 2 to the most);
+the perfect subtrees `t[1], …, t[m]` are "chained on the right" as `(t[m], (t[m-1], … (t[2], t[1]) … ))`.
+Under this view, to remove a leaf is then to "split" the perfect subtree for `h[i]` containing that leaf into `0, 1, …, h[i]-1`, and then to "merge" these with `h[1], …, h[i-1]`.
+One (or essentially, *the*) strategy minimizing further breaking up the perfect subtrees is to borrow `h[1]` (note that `h[1] < h[i]` and thus `h[1] ≤ h[i]-1`), let `h[1], h[1], …, h[i]-1` reconstruct `h[i]`, and put the remaining `0, 1, …, h[1]-1` to the head.
+This strategy leads to the following `pop` algorithm.
+
+Function `split(t: LBBT, v: LBBT) -> LBBT[]`:
+01. return the copath of `v` below `t`, *bottom-up*
+
+Function `merge(L: LBBT[]) -> LBBT`:
+01. if `#L = 1` then return the first item in `L`
+01. let `tr, tl` be the first two items in `L`, and `L'` be the remaining items
+01. return `merge([(tl, tr)] ++ L')`
+
+Function `pop(t: LBBT, l: Leaf) -> LBBT`:
+01. let `p` be the highest root of a *perfect* subtree on the path from `l` to the root
+    > `p` would be the root of the perfect subtree for `h[i]` containing `l`.
+01. let `ip := parent(p)`
+    > Note that `ip`, if not null, must be a root of an *imperfect* subtree, by the extremality of `p`.
+01. if `p = l`:
+    01. if `p` is root then undefined
+        > This branch means the last node in the tree is removed and we might raise an error, depending on the use case.
+    01. let `(ps, _p) := ip`
+        > Note that `p = l` must be a right child: if `p` were a left child, then the right child must also be a single leaf by the constraint of LBBT, and then `ip` would be perfect, contradicting the fact that `ip` must be imperfect.
+    01. return `replace(ip, ps)`
+01. let `S := split(p, t)`
+01. if `p` is root or `p` is the right child of `ip`:
+    01. return `replace(p, merge(S))`
+01. let `(_p, ps) := ip`
+01. let `r` be the first root of a perfect subtree along the "right child chain" of `ip`
+    > `r` would be the root of the perfect subtree for the smallest `h[m]`.
+01. if `r = ps` and `r` is a single leaf:
+    01. return `replace(ip, merge([r] ++ S))`
+01. let `Sr := split(ps, r)` (if `r = ps` then `Sr := []`)
+01. split `S` into `Slt ++ Sge`, where each perfect subtree in `Slt` has height less than that of `r`, and each in `Sge` has height at least that of `r`
+01. let `p' := merge([r] ++ Sge)`
+    > Note that `p'` is a perfect (sub)tree.
+01. let `ps' := merge(Slt ++ Sr)`
+01. let `ip' := (p', ps')`
+01. return `replace(ip, ip')`
+
+Then in `remove`, we can use `pop` instead of `GenericLazy.remove` and enjoy truly balanced LBBT.
 
 ### B Tree (BT)
 
