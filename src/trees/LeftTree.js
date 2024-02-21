@@ -22,18 +22,6 @@ const makeLeftTree = (position = 'greedy', truncate = 'truncate') => {
 	const isLazy = truncate !== 'balance';
 	const BaseTree = isLazy ? BinarySparseTree : BinaryTree;
 	return (
-
-/**
- *
- * left-balanced binary tree:
- * - left child is *perfect* binary tree,
- * - right child is recursively left-balanced binary tree,
- * - height of left child is no less than height of right child
- *
- * Fact.
- * [#leaf in perfect binary tree] = 2^floor(log2[#leaf])
- *
- */
 class LeftTree extends BaseTree {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);

@@ -79,13 +79,6 @@ class BTree extends BaseTree {
 			return parent.replace(epoch, parentNew, plugin);
 		}
 		assert(peers.length === max);
-		/**
-		 *
-		 * split `peers` into two halves
-		 * - such that `this` (or `nodeReplace`) is on the no-larger side, and then `sibling` can be placed on the same side
-		 * - this means if `max` is odd and `this` is at the middle, then need to move `this` (e.g., to the end)
-		 *
-		 */
 		if (max % 2 === 1 && nodeReplace === peers[min-1]) {
 			peers.splice(min-1, 1);
 			peers.push(nodeReplace);
@@ -127,24 +120,6 @@ class BTree extends BaseTree {
 			return parent.replace(epoch, parentNew, plugin);
 		}
 		assert(siblings.length === min-1);
-		/**
-		 *
-		 * borrow into or merge `siblings`, under the following precedence:
-		 * 01. merge next to hint
-		 * 01. borrow hint
-		 * 01. merge into any
-		 * 01. borrow from any
-		 *
-		 * for borrowing:
-		 * - let l be the number of children in the borrowed parent sibling
-		 * - borrow first or last (l-min) cousins if containing hint
-		 * - borrow hint alone if hint in the middle
-		 * - borrow last (l-min) cousins if no hint
-		 *
-		 * for merging:
-		 * - merge at the end
-		 *
-		 */
 		const parentSiblings = parent.getSiblings(epoch);
 		const hintParent = hint?.getParent(epoch);
 		assert((hint === null) === (hintParent === null));
