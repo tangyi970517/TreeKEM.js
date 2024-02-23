@@ -16,6 +16,19 @@ const processSkeleton = function * (root, epoch, skeletonExtra, region, crypto) 
 
 const isSkeleton = (node, epoch, skeletonExtra) => node.epoch === epoch || skeletonExtra.has(node);
 
+const recompose = node => {
+	if (!node.decompose) {
+		return;
+	}
+	const nodeMain = node.decompose[0];
+	recompose(nodeMain);
+	if (nodeMain.data.pk) {
+		node.data.pk = nodeMain.data.pk;
+		node.data.sk = nodeMain.data.sk;
+		node.data.unmerged = [].concat(nodeMain.data.unmerged ?? [], node.decompose.slice(0));
+	}
+};
+
 const skeletonGen = function * (root, epoch, skeletonExtra, region, crypto) {
 	assert(isSkeleton(root, epoch, skeletonExtra));
 	skeletonExtra.delete(root);
@@ -64,6 +77,7 @@ const skeletonGen = function * (root, epoch, skeletonExtra, region, crypto) {
 	}
 	root.data.pk = null;
 	root.data.sk = null;
+	root.data.unmerged = null;
 	let seed = null;
 	if (isInRegion) {
 		let secret;
@@ -72,7 +86,10 @@ const skeletonGen = function * (root, epoch, skeletonExtra, region, crypto) {
 		}
 		[seed, secret] = crypto.PRG(seedTrace, 2);
 		[root.data.pk, root.data.sk] = crypto.Gen(secret);
+		root.data.unmerged = null;
 		yield [root, seedTrace, childTrace];
+	} else {
+		recompose(root);
 	}
 	root.data.sizeBlank = sum(root.children.map(child => child.data.sizeBlank ?? 0), Number(Boolean(root.data.pk)));
 	return seed;
@@ -85,6 +102,11 @@ const skeletonEnc = function * (root, seed, crypto) {
 	assert(!root.isLeaf || root.data.pk);
 	if (root.data.pk) {
 		yield crypto.Enc(root.data.pk, seed);
+		if (root.data.unmerged) {
+			for (const node of root.data.unmerged) {
+				skeletonEnc(node, seed, crypto);
+			}
+		}
 	} else {
 		for (const child of root.children) {
 			skeletonEnc(child, seed, crypto);

@@ -27,6 +27,8 @@ class Tree {
 		}
 		this.childTrace = childTrace;
 
+		this.decompose = null;
+
 		this.data = {};
 
 		this.debug = randint(1e8);
@@ -151,12 +153,12 @@ class Tree {
 	}
 
 	replace(epoch, node, plugin = null) {
+		plugin?.align(node, this);
 		const parent = this.getParent(epoch);
 		if (parent === null) {
 			return node;
 		}
 		const parentNew = new this.constructor(epoch, replace(parent.children, this, node), node);
-		plugin?.align(parentNew, parent);
 		return parent.replace(epoch, parentNew);
 	}
 
@@ -188,6 +190,7 @@ class Tree {
 			child.unsetParent(this.epoch, this);
 		}
 		this.children.length = 0; // clear array
+		this.decompose = null;
 	}
 
 	get info() {
@@ -259,7 +262,12 @@ class SparseTree extends Tree {
 		assert(hint === null || /* hint.isLeaf && */ hint.getRoot(epoch) === this);
 		const leafRemoved = hint?.getClosestRemoved(epoch) ?? this.getRandomRemoved();
 		assert(leafRemoved !== null);
-		return leafRemoved.replace(epoch, leaf);
+		const pluginDecompose = {
+			align(nodeNew, node) {
+				nodeNew.decompose = [node, leaf];
+			},
+		};
+		return leafRemoved.replace(epoch, leaf, pluginDecompose);
 	}
 
 	remove(epoch, leaf, _hint = null) {

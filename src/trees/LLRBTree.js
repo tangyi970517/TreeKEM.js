@@ -173,6 +173,10 @@ class LLRBTree extends BaseTree {
 			}
 		}
 		nodeRB.B = node;
+		if (node.decompose) {
+			nodeRB.decompose = node.decompose.map(node => node.RB);
+			assert(nodeRB.decompose.every(Boolean));
+		}
 		return (node.RB = nodeRB);
 	}
 

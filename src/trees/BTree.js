@@ -75,8 +75,13 @@ class BTree extends BaseTree {
 		if (peers.length < max) {
 			peers.push(sibling);
 			const parentNew = new this.constructor(epoch, peers, sibling);
-			plugin?.align(parentNew, parent);
-			return parent.replace(epoch, parentNew, plugin);
+			const pluginDecompose = this === nodeReplace ? {
+				align(nodeNew, node) {
+					plugin?.align(nodeNew, node);
+					nodeNew.decompose = [node, sibling];
+				},
+			} : plugin;
+			return parent.replace(epoch, parentNew, pluginDecompose);
 		}
 		assert(peers.length === max);
 		if (max % 2 === 1 && nodeReplace === peers[min-1]) {
@@ -116,7 +121,6 @@ class BTree extends BaseTree {
 			return sibling;
 		} else if (grandparent === null || siblings.length >= min) {
 			const parentNew = new this.constructor(epoch, siblings, nodeReplace);
-			plugin?.align(parentNew, parent);
 			return parent.replace(epoch, parentNew, plugin);
 		}
 		assert(siblings.length === min-1);
@@ -177,13 +181,13 @@ class BTree extends BaseTree {
 			plugin?.align(parentSiblingNew, parentSibling);
 			const parentPeers = replace(replace(grandparent.children, parent, parentNew), parentSibling, parentSiblingNew);
 			const grandparentNew = new this.constructor(epoch, parentPeers, parentNew);
-			plugin?.align(grandparentNew, grandparent);
 			return grandparent.replace(epoch, grandparentNew, plugin);
 		}
 		assert(parentSibling.children.length <= max - min + 1);
 		const cousinsNew = [].concat(parentSibling.children, siblings);
 		const parentSiblingNew = new this.constructor(epoch, cousinsNew, nodeReplace);
 		plugin?.align(parentSiblingNew, parentSibling);
+		parentSiblingNew.decompose = [parentSibling, ...siblings];
 		return parent.removeSelf(epoch, hintParent, parentSibling, parentSiblingNew);
 	}
 

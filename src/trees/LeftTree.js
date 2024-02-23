@@ -73,7 +73,9 @@ class LeftTree extends BaseTree {
 			return new this.constructor(epoch, [this, leaf], leaf);
 		}
 		const childNew = this.rawR.append(epoch, leaf);
-		return new this.constructor(epoch, [this.rawL, childNew], childNew);
+		const rootNew = new this.constructor(epoch, [this.rawL, childNew], childNew);
+		rootNew.decompose = [this, leaf];
+		return rootNew;
 	}
 
 	* split(epoch, node) {
