@@ -438,6 +438,26 @@ We make the following particular choices of "tracing child":
 - LLRBT: rather complicated, and for now please refer to the code if interested;
   to remark, the isomorphism does not completely determine the "tracing child" relationship
 
+### Decomposition of "New" Nodes for Reusing "Old" Nodes
+
+MLS has an optimization about reusing (the secrets at) "old" nodes.
+In tree data structures, we accordingly consider the following task: to find a decomposition (if any) of a "new" node into an "old" node along with a list of nodes existing in the current tree, so that their leaves disjointly split the leaves of the "new" node.
+
+We figure out the following particular decomposition opportunities:
+- generic "lazy" `add`:
+  - for every recursive `replace(t, t')` in `replace(r, l)`, decompose `t'` into `[t,l]`
+    > Note that we only care about *true* leaves, so here replacing a lazily removed leaf by a true leaf is essentially adding a leaf.
+- LBBT `append`:
+  - decompose `(tl, append(tr, l))` into `[t,l]`
+- BT `addSibling`:
+  - for every recursive `replace(t, t')` in `replace(p, p')`, decompose `t'` into `[t,s]`
+- BT `removeSelf`:
+  - decompose the merged `ps'` into `[ps,…p']`
+- LLRBT: induced by the isomorphism; in particular, if a BT node `t` has a decomposition `[t[1], …, t[m]]`, then the LLRBT node `iso(t)` would have a decomposition `[iso(t[1]), …, iso(t[m])]`
+
+MLS refers to the list of nodes after the "old" node in the decomposition as "unmerged leaves", and we can see that these nodes are indeed leaf nodes in the case of LBBT.
+However in general (e.g., see BT) these nodes do not need to be leaf nodes, and thus we refer to them as generally "unmerged nodes".
+
 ## TreeKEM
 
 In TreeKEM, users in a group are placed at the leaf nodes in a tree, and each internal node either is *blank* or has a secret (more concretely, a public-secret key pair generated from the secret).
@@ -481,8 +501,18 @@ Method `update(id', id ?= id')`:
 All methods above share the subroutine `skeletonGen`, described below.
 To recall, the skeletons given by the tree operations and their path decompositions are implemented in implicit ways, so they are not really written down and passed around.
 
+Function `recompose(v)`:
+01. if `v` has no *decomposition for reusing "old" nodes* then return
+01. let `[v[1], …, v[m]]` be the decomposition of `v`
+01. `recompose(v[1])`
+01. if `v[1]` has secrets/keys:
+    01. copy secrets/keys in `v[1]` to `v`
+    01. set "unmerged nodes" at `v` to be `[v[2], …, v[m]]`
+
 Function `skeletonGen(t, s, r)`:
-01. blank `s \ r` in `t`
+01. for each `v ∈ s \ r`:
+    01. blank `v`
+    01. `recompose(v)`
 01. for each path `P[1], …, P[I]`, where `P[i] = (v[i,1], …, v[i,h[i]])` in `s ∩ r`:
     > The nodes in `P[i]` are listed bottom-up; also the paths themselves are sorted bottom-up.
     > Also, we remark that the path decomposition of the skeleton `s` naturally induces a path decomposition of any subset `s ∩ r`.
@@ -491,6 +521,7 @@ Function `skeletonGen(t, s, r)`:
         01. let `(seed[i,j+1], secret) := PRG(seed[i,j])`
         01. let `(pk, sk) := PKE.Gen(secret)`
         01. write `(pk, sk)` in `v[i,j]`
+        01. set "unmerged nodes" at `v` to be `[]`
 01. for each `seed[i,j]` at `v[i,j]`:
     01. `skeletonEnc(seed[i,j], v[i,j], v[i,j-1])` (if `j = 1` then `v[i,j-1] := null`)
 01. let `seed[I,h[I]+1]` be the group secret
@@ -500,5 +531,8 @@ Function `skeletonGen(t, s, r)`:
 Function `skeletonEnc(seed, v, c*)`:
 01. for each child `c` of `v`:
     01. if `c = c*` then continue
-    01. if `c` is non-blank, i.e., there is `pk` in `c` then `PKE.Enc(pk, seed)`
+    01. if `c` is non-blank, i.e., there is `pk` in `c`:
+        01. `PKE.Enc(pk, seed)`
+        01. if there are "unmerged nodes" `[c[1], …, c[m]]` at `c`:
+            01. `skeletonEnc(seed, c[i], null)`, for `i ∈ [m]`
     01. if `c` is blank then `skeletonEnc(seed, c, null)`
