@@ -450,7 +450,7 @@ We figure out the following particular decomposition opportunities:
 - LBBT `append`:
   - decompose `(tl, append(tr, l))` into `[t,l]`
 - BT `addSibling`:
-  - for every recursive `replace(t, t')` in `replace(p, p')`, decompose `t'` into `[t,s]`
+  - for every recursive `replace(t, t')` in `replace(p, p')`, decompose `t'` into `[t,s*]`, where `s*` is the value of `s` in the first recursion (in the normal case where the first recursion is called for adding a leaf, `s*` would simply be the added leaf)
 - BT `removeSelf`:
   - decompose the merged `ps'` into `[ps,…p']`
 - LLRBT: induced by the isomorphism; in particular, if a BT node `t` has a decomposition `[t[1], …, t[m]]`, then the LLRBT node `iso(t)` would have a decomposition `[iso(t[1]), …, iso(t[m])]`

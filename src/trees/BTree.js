@@ -66,7 +66,7 @@ class BTree extends BaseTree {
 		return new this(epoch, children, children[0]); // arbitrary trace
 	}
 
-	addSibling(epoch, sibling, nodeReplace = this) {
+	addSibling(epoch, sibling, nodeReplace = this, nodeDecompose = sibling) {
 		const parent = this.getParent(epoch);
 		if (parent === null) {
 			return new this.constructor(epoch, [nodeReplace, sibling], sibling);
@@ -75,12 +75,12 @@ class BTree extends BaseTree {
 		if (peers.length < max) {
 			peers.push(sibling);
 			const parentNew = new this.constructor(epoch, peers, sibling);
-			const pluginDecompose = this === nodeReplace ? {
+			const pluginDecompose = {
 				align(nodeNew, node) {
 					plugin?.align(nodeNew, node);
-					nodeNew.decompose = [node, sibling];
+					nodeNew.decompose = [node, nodeDecompose];
 				},
-			} : plugin;
+			};
 			return parent.replace(epoch, parentNew, pluginDecompose);
 		}
 		assert(peers.length === max);
@@ -101,7 +101,7 @@ class BTree extends BaseTree {
 		plugin?.align(parentNew, parent);
 		const nodeNew = new this.constructor(epoch, peersMove, sibling);
 		plugin?.align(nodeNew, parent);
-		return parent.addSibling(epoch, nodeNew, parentNew);
+		return parent.addSibling(epoch, nodeNew, parentNew, nodeDecompose);
 	}
 
 	removeSelf(epoch, hint = null, siblingToReplace = null, nodeReplace = null) {
