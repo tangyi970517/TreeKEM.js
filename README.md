@@ -536,3 +536,33 @@ Function `skeletonEnc(seed, v, c*)`:
         01. if there are "unmerged nodes" `[c[1], …, c[m]]` at `c`:
             01. `skeletonEnc(seed, c[i], null)`, for `i ∈ [m]`
     01. if `c` is blank then `skeletonEnc(seed, c, null)`
+
+### [Archaic] TreeKEM strategies preceding the notion of skeletons
+
+The following TreeKEM strategies are obsolete and no longer supported in the latest codes.
+They are either considered inefficient variants, or superseded by more general optimizations.
+
+- add strategy:
+  - "sync": normal behavior
+  - "async": just blank out instead of `skeletonGen`
+    > Caveat: for complete functionality, one would need to at least `skeletonGen` at the root in order to get a (new) group secret.
+    > (Note that due to the blanks, this new secret at the root would be rather expensive to broadcast in `skeletonEnc` though.)
+    > (More strictly, as remarked before, we really mean the secret at a "hypothetical parent" of the root.)
+- remove strategy:
+  - "remover": blank out the path from removee, remove from the tree, and then "update" (which is roughly `skeletonGen`, while with a potentially larger skeleton that adds the path from remover); equivalent to normal behavior (as the nodes on the blanked-out path, if still existing in the tree, are always contained in the skeleton of the remove operation), while with the potentially larger skeleton
+    > The strategies were designed before introducing the notion of skeletons, so here the blanked-out path for `skeletonGen` should be interpreted as the "new" nodes that "overlay" the "old" blanked-out path.
+    > (Technically, a "new" node created by the function `replace` is regarded as "overlaying" the corresponding replaced "old" node.)
+  - "remover-before": blank out the path from removee, "update" (roughly `skeletonGen`, for the blanked-out path), and then remove from the tree; equivalent to `skeletonGen` while excluding the nodes not "overlaying" some "old" nodes from the (potentially larger) skeleton
+    > Same caveat about blanking, in the corner case where all nodes in the skeleton get excluded.
+  - "removee": "update" (meaninglessly), blank out the path from removee, and then remove from the tree; equivalently, just blank out instead of `skeletonGen`
+    > Same caveat about blanking.
+- update strategy:
+  - "LCA": normal behavior
+  - "root": just blank out instead of `skeletonGen`
+    > Same caveat about blanking.
+- merge strategy:
+  - "blank": normal behavior (without the "unmerged nodes" optimization)
+  - "keep": keep a "partial secret" at certain nodes when "merging" nodes; superseded by the "unmerged nodes" optimization, with in particular the decomposition in BT `removeSelf`
+- split strategy:
+  - "blank": normal behavior (without the "unmerged nodes" optimization)
+  - "keep": keep a "partial secret" at certain *grandparent* nodes when "splitting" nodes; superseded by the "unmerged nodes" optimization, with in particular the decomposition in BT `addSibling`
