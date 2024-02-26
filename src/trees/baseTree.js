@@ -288,7 +288,8 @@ class SparseTree extends Tree {
 }
 
 export
-class BinaryTree extends Tree {
+const extendBinaryTree = TreeType => (
+class BinaryTree extends TreeType {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
 		assert(this.isLeaf || this.children.length === 2);
@@ -307,29 +308,12 @@ class BinaryTree extends Tree {
 		return this.children[1];
 	}
 }
+);
 
 export
-class BinarySparseTree extends SparseTree {
+const BinaryTree = extendBinaryTree(Tree);
 
-	// identical code!
-
-	constructor(epoch, children, childTrace) {
-		super(epoch, children, childTrace);
-		assert(this.isLeaf || this.children.length === 2);
-	}
-
-	get childL() {
-		if (this.isLeaf) {
-			return null;
-		}
-		return this.children[0];
-	}
-	get childR() {
-		if (this.isLeaf) {
-			return null;
-		}
-		return this.children[1];
-	}
-}
+export
+const BinarySparseTree = extendBinaryTree(SparseTree);
 
 export default Tree;
