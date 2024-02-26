@@ -274,6 +274,22 @@ class TreeKEM {
 		if (root.epoch < this.epoch) {
 			skeletonExtra.add(root);
 		}
+		if (this.taint.has(ub)) {
+			for (const node of this.taint.get(ub)) {
+				assert(node.data.taintBy?.has(ub));
+				node.data.taintBy.delete(ub);
+				if (node.data.taintBy.size === 0) {
+					node.data.taintBy = null;
+				}
+				if (node.getRoot(this.epoch, true) !== this.tree) {
+					continue;
+				}
+				for (const ancestor of node.getPath(this.epoch)) {
+					skeletonExtra.add(ancestor);
+				}
+			}
+			this.taint.delete(ub);
+		}
 
 		const path = new Set(ua.getPath(this.epoch));
 		for (const _ of function * () {
