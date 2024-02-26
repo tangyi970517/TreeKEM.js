@@ -159,7 +159,7 @@ const skeletonGen = function * (root, epoch, skeletonExtra, path, regionPredicat
 	} else {
 		yield [root, null, null];
 	}
-	root.data.sizeBlank = sum(root.children.map(child => child.data.sizeBlank ?? 0), Number(Boolean(root.data.pk)));
+	root.data.sizeBlank = sum(root.children.map(child => child.data.sizeBlank ?? 0), Number(!root.data.pk));
 	return seed;
 };
 
