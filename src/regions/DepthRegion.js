@@ -7,7 +7,7 @@ class DepthRegion {
 	}
 
 	getDepth(leaf) {
-		return this.depths.get(leaf) ?? 0;
+		return this.depths.get(leaf) ?? DepthMax;
 	}
 	setDepth(leaf, depth) {
 		return this.depths.set(leaf, Math.min(depth, DepthMax));
@@ -15,12 +15,12 @@ class DepthRegion {
 
 	isInRegion(node, leaf, epoch, _root, path = new Set(leaf.getPath(epoch))) {
 		let d = this.getDepth(leaf);
-		for (const parent of node.getPath(epoch, false)) {
+		for (const ancestor of node.getPath(epoch, false)) {
 			if (d <= 0) {
 				break;
 			}
 			--d;
-			if (path.has(parent)) {
+			if (path.has(ancestor)) {
 				return true;
 			}
 		}
