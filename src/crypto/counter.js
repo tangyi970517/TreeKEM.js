@@ -2,7 +2,7 @@ import {assert} from '../utils.js';
 
 class CounterCrypto {
 	constructor() {
-		this.counts = Object.fromEntries('random,PRG,Gen,Enc,Dec'.split(',').map(key => [key, 0]));
+		this.counts = Object.fromEntries('random,PRG,Gen,Enc,Dec,SGen,SEnc,SDec'.split(',').map(key => [key, 0]));
 	}
 
 	get stat() {
@@ -20,20 +20,37 @@ class CounterCrypto {
 		return Array(k).fill('r');
 	}
 
-	Gen(seed) {
+	PKE_Gen(seed) {
 		assert(seed === 'r');
 		++this.counts.Gen;
 		return ['pk', 'sk'];
 	}
-	Enc(pk, _m) {
+	PKE_Enc(pk, _m) {
 		assert(pk === 'pk');
 		++this.counts.Enc;
 		return 'c';
 	}
-	Dec(sk, c) {
+	PKE_Dec(sk, c) {
 		assert(sk === 'sk');
 		assert(c === 'c');
 		++this.counts.Dec;
+		return null;
+	}
+
+	SKE_Gen(seed) {
+		assert(seed === 'r');
+		++this.counts.SGen;
+		return 'k';
+	}
+	SKE_Enc(k, _m) {
+		assert(k === 'k');
+		++this.counts.SEnc;
+		return 'c_k';
+	}
+	SKE_Dec(k, c) {
+		assert(k === 'k');
+		assert(c === 'c_k');
+		++this.counts.SDec;
 		return null;
 	}
 }

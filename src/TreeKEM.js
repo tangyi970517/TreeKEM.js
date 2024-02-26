@@ -17,7 +17,7 @@ const processSkeleton = function * (leaf, epoch, root, skeletonExtra, path, {reg
 			if (node === childTrace) {
 				continue;
 			}
-			yield * skeletonEnc(child, seed, crypto);
+			yield * skeletonEnc(child, seed, leaf, path, crypto);
 		}
 		for (const [leafOther, _] of taint) {
 			if (leafOther === leaf) {
@@ -28,7 +28,7 @@ const processSkeleton = function * (leaf, epoch, root, skeletonExtra, path, {reg
 				continue;
 			}
 			assert(leafOther.data.pk);
-			crypto.Enc(leafOther.data.pk, seed);
+			crypto.PKE_Enc(leafOther.data.pk, seed);
 			taintNode(taint, leafOther, node);
 		}
 	}
@@ -48,6 +48,7 @@ const recompose = (node, taintMap) => {
 	if (nodeMain.data.pk) {
 		node.data.pk = nodeMain.data.pk;
 		node.data.sk = nodeMain.data.sk;
+		node.data.kk = nodeMain.data.kk;
 		node.data.unmerged = [].concat(nodeMain.data.unmerged ?? [], node.decompose.slice(1));
 		if (!nodeMain.data.taintBy) {
 			return;
@@ -145,16 +146,18 @@ const skeletonGen = function * (root, epoch, skeletonExtra, path, regionPredicat
 	}
 	root.data.pk = null;
 	root.data.sk = null;
+	root.data.kk = null;
 	root.data.unmerged = null;
 	let seed = null;
 	const isInRegion = path.has(root) || regionPredicate(root);
 	if (isInRegion) {
-		let secret;
 		if (!seedTrace) {
 			seedTrace = crypto.random();
 		}
-		[seed, secret] = crypto.PRG(seedTrace, 2);
-		[root.data.pk, root.data.sk] = crypto.Gen(secret);
+		let secret, secretSKE;
+		[seed, secret, secretSKE] = crypto.PRG(seedTrace, 3);
+		[root.data.pk, root.data.sk] = crypto.PKE_Gen(secret);
+		root.data.kk = crypto.SKE_Gen(secretSKE);
 		yield [root, seedTrace, childTrace];
 	} else {
 		yield [root, null, null];
@@ -163,21 +166,26 @@ const skeletonGen = function * (root, epoch, skeletonExtra, path, regionPredicat
 	return seed;
 };
 
-const skeletonEnc = function * (root, seed, crypto) {
+const skeletonEnc = function * (root, seed, leaf, path, crypto) {
 	if (root.isAllRemoved) {
 		return;
 	}
 	assert(!root.isLeaf || root.data.pk);
+	assert(root.isLeaf || (!root.data.pk) === (!root.data.kk));
 	if (root.data.pk) {
-		yield crypto.Enc(root.data.pk, seed);
+		if (root.data.kk && (path.has(root) || root.data.taintBy?.has(leaf))) {
+			yield crypto.SKE_Enc(root.data.kk, seed);
+		} else {
+			yield crypto.PKE_Enc(root.data.pk, seed);
+		}
 		if (root.data.unmerged) {
 			for (const node of root.data.unmerged) {
-				skeletonEnc(node, seed, crypto);
+				skeletonEnc(node, seed, leaf, path, crypto);
 			}
 		}
 	} else {
 		for (const child of root.children) {
-			skeletonEnc(child, seed, crypto);
+			skeletonEnc(child, seed, leaf, path, crypto);
 		}
 	}
 };
@@ -229,10 +237,11 @@ class TreeKEM {
 		this.crypto = new Crypto();
 		return cryptoOld;
 	}
-	static initData(leaf, id, pk, sk = null) {
+	static initData(leaf, id, pk, sk = null, k = null) {
 		leaf.data.id = id;
 		leaf.data.pk = pk;
 		leaf.data.sk = sk;
+		leaf.data.kk = k;
 		leaf.data.sizeBlank = 0;
 	}
 

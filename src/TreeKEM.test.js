@@ -5,7 +5,7 @@ const crypto = new CounterCrypto();
 
 const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 	const TreeKEM = new TreeKEMType();
-	const ks = Array.from(Array(n), () => crypto.Gen(crypto.random()));
+	const ks = Array.from(Array(n), () => crypto.PKE_Gen(crypto.random()));
 	const id_pks = ks.map((k, i) => [i, k[0]]);
 	const cryptoOld = TreeKEM.init(id_pks);
 	if (verbose >= 1) console.log('init stat', cryptoOld.stat);
@@ -22,7 +22,7 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 				const user = users[randint(users.length)];
 				users.push(userNew);
 				if (verbose >= 1) console.log('add', userNew, 'by', user, 'at', t);
-				const [pk, _] = crypto.Gen(crypto.random());
+				const [pk, _] = crypto.PKE_Gen(crypto.random());
 				TreeKEM.add(user, userNew, pk);
 				if (verbose >= 3) TreeKEM.tree.print();
 			} break;
