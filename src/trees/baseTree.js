@@ -1,23 +1,15 @@
 import {assert, range, randint, sum, coalesce, replace, randomChoice} from '../utils.js';
+import ChildTree from './persistChildTree.js';
 
-class Tree {
+class Tree extends ChildTree {
 	constructor(epoch, children = [], childTrace = null) {
+		super(children);
+
 		this.epoch = epoch;
 
 		this.parentHistory = [[-Infinity, null]];
-		this.children = children;
 		for (const child of children) {
 			child.setParent(epoch, this);
-		}
-
-		if (this.isLeaf) {
-			this.height = 0;
-			this.size = 1;
-			this.sizeLeaf = 1;
-		} else {
-			this.height = Math.max(...this.children.map(child => child.height)) + 1;
-			this.size = sum(this.children.map(child => child.size), 1);
-			this.sizeLeaf = sum(this.children.map(child => child.sizeLeaf));
 		}
 
 		if (childTrace === null) {
@@ -35,24 +27,9 @@ class Tree {
 		this.debug = randint(1e8);
 	}
 
-	get isLeaf() {
-		return this.children.length === 0;
-	}
 	* getLeaves(acknowledgingComplexity = false) {
 		assert(acknowledgingComplexity, 'O(n) time complexity');
-		if (this.isLeaf) {
-			yield this;
-			return;
-		}
-		for (const child of this.children) {
-			yield * child.getLeaves(true);
-		}
-	}
-	getRandomLeaf() {
-		if (this.isLeaf) {
-			return this;
-		}
-		return randomChoice(this.children, 'sizeLeaf', this.sizeLeaf).getRandomLeaf();
+		yield * super.getLeaves();
 	}
 
 	getTrace() {
