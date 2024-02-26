@@ -9,7 +9,7 @@ const testTree = (TreeType, n, T, isFast = true, verbose = 0) => {
 		leaves.push(leaf);
 	}
 	if (verbose >= 3) tree.print();
-	if (verbose >= 3) tree.B?.print?.();
+	if (verbose >= 3) tree.B?.print();
 	const count = [0, 0];
 	for (const t of range(T)) {
 		const treeOld = tree;
@@ -26,7 +26,7 @@ const testTree = (TreeType, n, T, isFast = true, verbose = 0) => {
 				tree = tree.add(epoch, leafNew, leafHint);
 				treeOld.clearTill(epoch, tree);
 				if (verbose >= 3) tree.print();
-				if (verbose >= 3) tree.B?.print?.();
+				if (verbose >= 3) tree.B?.print();
 				assert(tree.getTrace() === leafNew, tree.info, tree.getTrace()?.info, leafNew.info);
 				assert(tree.epoch === epoch, tree.info, tree.epoch, epoch);
 			} break;
@@ -42,7 +42,7 @@ const testTree = (TreeType, n, T, isFast = true, verbose = 0) => {
 				tree = tree.remove(epoch, leafOld, leafHint);
 				treeOld.clearTill(epoch, tree);
 				if (verbose >= 3) tree.print();
-				if (verbose >= 3) tree.B?.print?.();
+				if (verbose >= 3) tree.B?.print();
 				assert(tree.epoch <= epoch, tree.info, tree.epoch, epoch);
 			} break;
 		}
@@ -64,7 +64,7 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
 		leaves.push(leaf);
 	}
 	if (verbose >= 3) tree.print();
-	if (verbose >= 3) tree.B?.print?.();
+	if (verbose >= 3) tree.B?.print();
 	const count = [0, 0];
 	for (const t of range(T)) {
 		const nAdd = randint(n - leaves.length + 1);
@@ -81,7 +81,7 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
 			tree = tree.add(epoch, leafNew, leafHint);
 			treeOld.clearTill(epoch, tree);
 			if (verbose >= 3) tree.print();
-			if (verbose >= 3) tree.B?.print?.();
+			if (verbose >= 3) tree.B?.print();
 			assert(tree.getTrace() === leafNew, tree.info, tree.getTrace()?.info, leafNew.info);
 			assert(tree.epoch === epoch, tree.info, tree.epoch, epoch);
 			if (!isFast) for (const leaf of leaves) {
@@ -100,7 +100,7 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
 			tree = tree.remove(epoch, leafOld, leafHint);
 			treeOld.clearTill(epoch, tree);
 			if (verbose >= 3) tree.print();
-			if (verbose >= 3) tree.B?.print?.();
+			if (verbose >= 3) tree.B?.print();
 			assert(tree.epoch <= epoch, tree.info, tree.epoch, epoch);
 			if (!isFast) for (const leaf of leaves) {
 				assert(leaf.getRoot(epoch, true) === tree, leaf.info, leaf.getRoot(epoch, true).info, tree.info);
