@@ -103,10 +103,18 @@ class Tree {
 		return this.parentHistory[this.indexOfEpoch(epoch)][1];
 	}
 	unsetParent(epoch, parent) {
-		const i = this.parentHistory.findIndex(([e, p]) => e === epoch && p === parent);
-		assert(i >= 0);
-		this.parentHistory.splice(i, 1);
-		return this;
+		const iLast = this.indexOfEpoch(epoch);
+		for (let i = iLast; i >= 0; --i) {
+			const [e, p] = this.parentHistory[i];
+			if (e < epoch) {
+				break;
+			}
+			if (p === parent) {
+				this.parentHistory.splice(i, 1);
+				return this;
+			}
+		}
+		assert(false);
 	}
 
 	getRoot(epoch, caching = false) {
