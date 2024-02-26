@@ -9,6 +9,7 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 	const id_pks = ks.map((k, i) => [i, k[0]]);
 	const cryptoOld = TreeKEM.init(id_pks);
 	if (verbose >= 1) console.log('init stat', cryptoOld.stat);
+	if (verbose >= 3) TreeKEM.tree.print();
 	const users = [...range(n)];
 	let userLast = n-1;
 	const count = [0, 0, 0];
@@ -23,6 +24,7 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 				if (verbose >= 1) console.log('add', userNew, 'by', user, 'at', t);
 				const [pk, _] = crypto.Gen(crypto.random());
 				TreeKEM.add(user, userNew, pk);
+				if (verbose >= 3) TreeKEM.tree.print();
 			} break;
 			case 1: {
 				if (users.length < 2) {
@@ -33,12 +35,14 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 				const user = users[randint(users.length)];
 				if (verbose >= 1) console.log('remove', userOld, 'by', user, 'at', t);
 				TreeKEM.remove(user, userOld);
+				if (verbose >= 3) TreeKEM.tree.print();
 			} break;
 			case 2: {
 				const userCom = users[randint(users.length)];
 				const user = users[randint(users.length)];
 				if (verbose >= 1) console.log('update', userCom, 'by', user, 'at', t);
 				TreeKEM.update(userCom, user);
+				if (verbose >= 3) TreeKEM.tree.print();
 			} break;
 		}
 	}
@@ -51,11 +55,17 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 
 import {makeTreeKEM} from './TreeKEM.js';
 
-import {TreeTypes} from './trees/mod.js';
+import {TreeTypes, DefaultTreeTypes} from './trees/mod.js';
+
+import {RegionTypes} from './regions/mod.js';
+import {makeDepthRegion} from './regions/DepthRegion.js';
 
 const TreeKEMTypes = new Map();
-for (const [descTree, TreeType] of TreeTypes.entries()) {
-	TreeKEMTypes.set(`tree=(${descTree})`, makeTreeKEM(TreeType, CounterCrypto));
+for (const [descTree, TreeType] of DefaultTreeTypes.entries())
+for (const [descRegion, RegionType] of RegionTypes.entries())
+for (const depth of [0, 1])
+{
+	TreeKEMTypes.set(`tree=(${descTree}), region-enc=(${descRegion}), region-dec-depth=${depth}`, makeTreeKEM(CounterCrypto, TreeType, RegionType, makeDepthRegion(depth)));
 }
 
 for (const [desc, TreeKEMType] of TreeKEMTypes.entries()) {

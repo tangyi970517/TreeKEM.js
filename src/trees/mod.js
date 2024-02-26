@@ -35,3 +35,11 @@ for (const remove of BTreeEnums.remove)
 {
 	TreeTypes.set(`LLRB: mode=${mode}, pos=${position}, rem=${remove}`, makeLLRBTree(mode, position));
 }
+
+export
+const DefaultTreeTypes = new Map();
+
+DefaultTreeTypes.set('left', makeLeftTree());
+DefaultTreeTypes.set('2-3', make23Tree());
+DefaultTreeTypes.set('2-3-4', make234Tree());
+DefaultTreeTypes.set('LLRB', makeLLRBTree());
