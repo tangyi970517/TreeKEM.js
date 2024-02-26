@@ -168,11 +168,14 @@ class Tree extends ChildTree {
 	}
 
 	clearTill(epochNew, rootNew) {
-		if (this.getRoot(epochNew, true) === rootNew) {
+		this.clearWhen(node => node.getRoot(epochNew, true) !== rootNew);
+	}
+	clearWhen(predicate) {
+		if (!predicate(this)) {
 			return;
 		}
 		for (const child of this.children) {
-			child.clearTill(epochNew, rootNew);
+			child.clearWhen(predicate);
 			child.unsetParent(this.epoch, this);
 		}
 		this.children.length = 0; // clear array

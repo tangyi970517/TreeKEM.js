@@ -202,7 +202,9 @@ class LeftTree extends BaseTree {
 				if (rootTruncate.epoch < epoch) {
 					rootTruncate.setParent(epoch, null);
 				}
-				rootNew.clearTill(epoch, rootTruncate);
+				if (rootTruncate !== rootNew) {
+					rootNew.clearWhen(node => node.epoch === epoch && node.getRoot(epoch, true) === rootNew);
+				}
 				return rootTruncate;
 			} break;
 			case 'keep': {
