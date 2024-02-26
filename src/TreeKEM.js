@@ -21,11 +21,13 @@ const recompose = node => {
 		return;
 	}
 	const nodeMain = node.decompose[0];
-	recompose(nodeMain);
+	if (!nodeMain.data.pk) {
+		recompose(nodeMain);
+	}
 	if (nodeMain.data.pk) {
 		node.data.pk = nodeMain.data.pk;
 		node.data.sk = nodeMain.data.sk;
-		node.data.unmerged = [].concat(nodeMain.data.unmerged ?? [], node.decompose.slice(0));
+		node.data.unmerged = [].concat(nodeMain.data.unmerged ?? [], node.decompose.slice(1));
 	}
 };
 
