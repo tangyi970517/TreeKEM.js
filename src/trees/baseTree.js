@@ -28,6 +28,7 @@ class Tree {
 		this.childTrace = childTrace;
 
 		this.decompose = null;
+		this.isComponent = false;
 
 		this.data = {};
 
@@ -265,6 +266,7 @@ class SparseTree extends Tree {
 		const pluginDecompose = {
 			align(nodeNew, node) {
 				nodeNew.decompose = [node, leaf];
+				node.isComponent = true;
 			},
 		};
 		return leafRemoved.replace(epoch, leaf, pluginDecompose);

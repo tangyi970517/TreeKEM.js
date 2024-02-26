@@ -176,6 +176,8 @@ class LLRBTree extends BaseTree {
 		if (node.decompose) {
 			nodeRB.decompose = node.decompose.map(node => node.RB);
 			assert(nodeRB.decompose.every(Boolean));
+			assert(node.decompose[0].isComponent);
+			nodeRB.decompose[0].isComponent = true;
 		}
 		return (node.RB = nodeRB);
 	}

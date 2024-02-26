@@ -79,6 +79,7 @@ class BTree extends BaseTree {
 				align(nodeNew, node) {
 					plugin?.align(nodeNew, node);
 					nodeNew.decompose = [node, nodeDecompose];
+					node.isComponent = true;
 				},
 			};
 			return parent.replace(epoch, parentNew, pluginDecompose);
@@ -188,6 +189,7 @@ class BTree extends BaseTree {
 		const parentSiblingNew = new this.constructor(epoch, cousinsNew, nodeReplace);
 		plugin?.align(parentSiblingNew, parentSibling);
 		parentSiblingNew.decompose = [parentSibling, ...siblings];
+		parentSibling.isComponent = true;
 		return parent.removeSelf(epoch, hintParent, parentSibling, parentSiblingNew);
 	}
 
