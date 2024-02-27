@@ -7,7 +7,7 @@ const processSkeleton = function * (leaf, epoch, root, skeletonExtra, path, {reg
 		assert(childTrace === null || node.children.indexOf(childTrace) >= 0);
 		rinseNode(taint, node);
 		if (!seed) {
-			recompose(root, taint);
+			recompose(node, taint);
 			continue;
 		}
 		if (!path.has(node)) {
