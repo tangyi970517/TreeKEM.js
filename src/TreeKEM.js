@@ -294,6 +294,9 @@ class TreeKEM {
 					continue;
 				}
 				for (const ancestor of node.getPath(this.epoch)) {
+					if (skeletonExtra.has(ancestor)) {
+						break;
+					}
 					skeletonExtra.add(ancestor);
 				}
 			}
@@ -323,6 +326,9 @@ class TreeKEM {
 			for (const node of this.taint.get(ub)) {
 				assert(node.getRoot(this.epoch, true) === this.tree);
 				for (const ancestor of node.getPath(this.epoch)) {
+					if (skeletonExtra.has(ancestor)) {
+						break;
+					}
 					skeletonExtra.add(ancestor);
 				}
 			}
