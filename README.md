@@ -501,18 +501,8 @@ Method `update(id', id ?= id')`:
 All methods above share the subroutine `skeletonGen`, described below.
 To recall, the skeletons given by the tree operations and their path decompositions are implemented in implicit ways, so they are not really written down and passed around.
 
-Function `recompose(v)`:
-01. if `v` has no *decomposition for reusing "old" nodes* then return
-01. let `[v[1], …, v[m]]` be the decomposition of `v`
-01. `recompose(v[1])`
-01. if `v[1]` has secrets/keys:
-    01. copy secrets/keys in `v[1]` to `v`
-    01. set "unmerged nodes" at `v` to be `[v[2], …, v[m]]`
-
 Function `skeletonGen(t, s, r)`:
-01. for each `v ∈ s \ r`:
-    01. blank `v`
-    01. `recompose(v)`
+01. blank `s \ r`
 01. for each path `P[1], …, P[I]`, where `P[i] = (v[i,1], …, v[i,h[i]])` in `s ∩ r`:
     > The nodes in `P[i]` are listed bottom-up; also the paths themselves are sorted bottom-up.
     > Also, we remark that the path decomposition of the skeleton `s` naturally induces a path decomposition of any subset `s ∩ r`.
@@ -521,7 +511,6 @@ Function `skeletonGen(t, s, r)`:
         01. let `(seed[i,j+1], secret) := PRG(seed[i,j])`
         01. let `(pk, sk) := PKE.Gen(secret)`
         01. write `pk, sk` in `v[i,j]`
-        01. set "unmerged nodes" at `v` to be `[]`
 01. for each `seed[i,j]` at `v[i,j]`:
     01. `skeletonEnc(seed[i,j], v[i,j], v[i,j-1])` (if `j = 1` then `v[i,j-1] := null`)
 01. let `seed[I,h[I]+1]` be the group secret
@@ -531,11 +520,27 @@ Function `skeletonGen(t, s, r)`:
 Function `skeletonEnc(seed, v, c*)`:
 01. for each child `c` of `v`:
     01. if `c = c*` then continue
-    01. if `c` is non-blank, i.e., there is `pk` in `c`:
-        01. `PKE.Enc(pk, seed)`
-        01. if there are "unmerged nodes" `[c[1], …, c[m]]` at `c`:
-            01. `skeletonEnc(seed, c[i], null)`, for `i ∈ [m]`
+    01. if `c` is non-blank, i.e., there is `pk` in `c` then `PKE.Enc(pk, seed)`
     01. if `c` is blank then `skeletonEnc(seed, c, null)`
+
+### Optimization: Reuse "Old" Secrets
+
+Using the *decomposition of "new" nodes for reusing "old" nodes*, we have an optimization that saves blanks in the protocol.
+
+Function `recompose(v)`:
+01. if `v` has no *decomposition for reusing "old" nodes* then return
+01. let `[v[1], …, v[m]]` be the decomposition of `v`
+01. if `v[1]` has no secret then `recompose(v[1])`
+01. if `v[1]` now has secrets:
+    01. copy secrets at `v[1]` to `v`
+    01. set "unmerged nodes" at `v` to be "unmerged nodes" at `v[1]` along with `[v[2], …, v[m]]`
+
+We then make the following changes to the algorithms:
+- In `skeletonGen`:
+  - for each `v ∈ s \ r`, besides blanking, also apply `recompose(v)`
+  - (set "unmerged nodes" to be `[]` for freshly generated secrets)
+- In `skeletonEnc`:
+  - besides `PKE.Enc(pk, seed)`, if there are "unmerged nodes" `[c[1], …, c[m]]` at `c` then `skeletonEnc(seed, c[i], null)`, for `i ∈ [m]`
 
 ### [Archaic] TreeKEM strategies preceding the notion of skeletons
 
