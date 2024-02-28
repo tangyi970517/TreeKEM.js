@@ -542,6 +542,37 @@ We then make the following changes to the algorithms:
 - In `skeletonEnc`:
   - besides `PKE.Enc(pk, seed)`, if there are "unmerged nodes" `[c[1], …, c[m]]` at `c` then `skeletonEnc(seed, c[i], null)`, for `i ∈ [m]`
 
+### Generalization: Secret Region and Tainting
+
+As a generalization, we replace the *paths* in the invariant with general *secret regions*; the generalized invariant is now:
+*each user knows and only knows the secrets at the (non-blank) nodes **in the user's secret region**.*
+For ease of the (generalized) algorithms, we restrict that a user's secret region must at least include the path from the user's leaf to the root of the tree, and must not include other users' leaves.
+Under this restriction, it is sometimes more convenient to speak about the *additional secret region*, which excludes the path.
+
+The actual secret regions in the algorithms are determined by a *secret region strategy*, which we denote by `region(user: Leaf, node: Tree) -> Boolean`, meaning whether the `user`'s *additional* secret region includes `node`;
+it is plausible that the actual secret region strategy wants more information from the protocol, and one can easily adapt the interface to the demands.
+Moreover, we actually have two independent secret region strategies in the algorithm, and we name the two as `regionGen` and `regionEnc`; the reason behind the naming would be obvious in the context.
+
+Accordingly, each (internal) node keeps track of the "tainting" users whose *additional* secret regions include that node.
+A node is called *tainted* if it has non-empty "tainting" user set.
+
+The algorithms generalize as follows.
+- In `remove` and `update`:
+  - add the *additional* secret region of `id'` to `s`; moreover, the nodes should be added in a "path-/parent-closed" way, such that for every `v ∈ s`, we have `parent(v) ∈ s` as well
+    > Note that this way, the skeleton `s` after adding the nodes must still be connected.
+- In `init`/`add`/`remove`/`update`
+  - `r` now consists of a path `p` along with its corresponding user `user`
+- In `skeletonGen`:
+  - whether `v ∈ s \ r` or is part of `s ∩ r` is decided by whether `v ∈ s \ p ∧ ¬regionGen(user, v)`
+  - (after blanking `v ∈ s \ r`, `v` is no longer tainted)
+  - for each `v[i,j] ∈ s ∩ r` with freshly generated secrets, if (and only if) `v[i,j] ∈ s \ p` then `v[i,j]` is considered tainted by `user`
+  - for each `v[i,j]`, for each other user `user'` with public key `pk'` (at the leaf for `user'`), if `regionEnc(user', v)` then `PKE.Enc(pk', seed[i,j])`, and `v[i,j]` is (also) tainted by `user'`
+    > It would be inefficient to iterate over all users and check if `regionEnc(user', v)` is satisfied, and one needs to build extra data structure in `regionEnc` for (approximately) generating the satisfying users.
+- In `recompose`:
+  - inherit the "tainting" users when copying secrets
+
+It can be verified that the above changes become no-op if additional secret region is always empty (i.e., if `regionEnc` and `regionDec` always return `false`).
+
 ### [Archaic] TreeKEM strategies preceding the notion of skeletons
 
 The following TreeKEM strategies are obsolete and no longer supported in the latest codes.
