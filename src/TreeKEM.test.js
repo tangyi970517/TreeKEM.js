@@ -61,11 +61,12 @@ import {RegionTypes} from './regions/mod.js';
 import {makeDepthRegion} from './regions/DepthRegion.js';
 
 const TreeKEMTypes = new Map();
+for (const usingUnmergedNodes of [false, true])
 for (const [descTree, TreeType] of DefaultTreeTypes.entries())
 for (const [descRegion, RegionType] of RegionTypes.entries())
 for (const depth of [0, 1])
 {
-	TreeKEMTypes.set(`tree=(${descTree}), region-enc=(${descRegion}), region-dec-depth=${depth}`, makeTreeKEM(CounterCrypto, TreeType, RegionType, makeDepthRegion(depth)));
+	TreeKEMTypes.set(`flag-unmerged=${Number(usingUnmergedNodes)}, tree=(${descTree}), region-enc=(${descRegion}), region-dec-depth=${depth}`, makeTreeKEM(CounterCrypto, {usingUnmergedNodes}, TreeType, RegionType, makeDepthRegion(depth)));
 }
 
 for (const [desc, TreeKEMType] of TreeKEMTypes.entries()) {

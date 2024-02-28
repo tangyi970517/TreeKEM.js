@@ -1,40 +1,5 @@
 import {assert, sum} from './utils.js';
 
-const processSkeleton = function * (leaf, epoch, root, skeletonExtra, path, {regionEnc, regionDec, taint}, crypto) {
-	const regionPredicate = node => regionEnc.isInRegion(node, leaf, epoch, root, path);
-	for (const [node, seed, childTrace] of skeletonGen(root, epoch, skeletonExtra, path, regionPredicate, crypto)) {
-		assert(!node.isLeaf);
-		assert(childTrace === null || node.children.indexOf(childTrace) >= 0);
-		rinseNode(taint, node);
-		if (!seed) {
-			recompose(node, taint);
-			continue;
-		}
-		if (!path.has(node)) {
-			taintNode(taint, leaf, node);
-		}
-		for (const child of node.children) {
-			if (node === childTrace) {
-				continue;
-			}
-			yield * skeletonEnc(child, seed, leaf, path, crypto);
-		}
-		for (const [leafOther, _] of taint) {
-			if (leafOther === leaf) {
-				continue;
-			}
-			const path = new Set(leafOther.getPath(epoch));
-			if (path.has(node) || !regionDec.isInRegion(node, leafOther, epoch, root, path)) {
-				continue;
-			}
-			assert(leafOther.data.pk);
-			crypto.PKE_Enc(leafOther.data.pk, seed);
-			taintNode(taint, leafOther, node);
-		}
-	}
-	assert(skeletonExtra.size === 0);
-};
-
 const isSkeleton = (node, epoch, skeletonExtra) => node.epoch === epoch || skeletonExtra.has(node);
 
 const recompose = (node, taintMap) => {
@@ -195,7 +160,14 @@ import LeftTree from './trees/LeftTree.js';
 import PathRegion from './regions/PathRegion.js';
 
 export
-const makeTreeKEM = (Crypto = DefaultCrypto, TreeType = LeftTree, RegionTypeEnc = PathRegion, RegionTypeDec = PathRegion) => {
+const makeTreeKEM = (
+	Crypto = DefaultCrypto,
+	{
+		usingUnmergedNodes = true,
+	} = {},
+	TreeType = LeftTree,
+	RegionTypeEnc = PathRegion, RegionTypeDec = PathRegion,
+) => {
 	return (
 class TreeKEM {
 	constructor() {
@@ -230,7 +202,7 @@ class TreeKEM {
 
 		const path = new Set(ua.getPath(this.epoch));
 		for (const _ of function * () {
-		yield * processSkeleton(ua, this.epoch, this.tree, skeletonExtra, path, this, this.crypto);
+		yield * this.processSkeleton(this.epoch, this.tree, skeletonExtra, ua, path);
 		}.bind(this)()) ;
 
 		const cryptoOld = this.crypto;
@@ -259,7 +231,7 @@ class TreeKEM {
 
 		const path = new Set(ua.getPath(this.epoch));
 		for (const _ of function * () {
-		yield * processSkeleton(ua, this.epoch, this.tree, skeletonExtra, path, this, this.crypto);
+		yield * this.processSkeleton(this.epoch, this.tree, skeletonExtra, ua, path);
 		}.bind(this)()) ;
 
 		rinseTill(this.taint, treeOld, this.epoch, this.tree);
@@ -305,7 +277,7 @@ class TreeKEM {
 
 		const path = new Set(ua.getPath(this.epoch));
 		for (const _ of function * () {
-		yield * processSkeleton(ua, this.epoch, this.tree, skeletonExtra, path, this, this.crypto);
+		yield * this.processSkeleton(this.epoch, this.tree, skeletonExtra, ua, path);
 		}.bind(this)()) ;
 
 		rinseTill(this.taint, treeOld, this.epoch, this.tree);
@@ -336,8 +308,45 @@ class TreeKEM {
 
 		const path = new Set(ua.getPath(this.epoch));
 		for (const _ of function * () {
-		yield * processSkeleton(ua, this.epoch, this.tree, skeletonExtra, path, this, this.crypto);
+		yield * this.processSkeleton(this.epoch, this.tree, skeletonExtra, ua, path);
 		}.bind(this)()) ;
+	}
+
+	* processSkeleton(epoch, root, skeletonExtra, leaf, path) {
+		const regionPredicate = node => this.regionEnc.isInRegion(node, leaf, epoch, root, path);
+		for (const [node, seed, childTrace] of skeletonGen(root, epoch, skeletonExtra, path, regionPredicate, this.crypto)) {
+			assert(!node.isLeaf);
+			assert(childTrace === null || node.children.indexOf(childTrace) >= 0);
+			rinseNode(this.taint, node);
+			if (!seed) {
+				if (usingUnmergedNodes) {
+					recompose(node, this.taint);
+				}
+				continue;
+			}
+			if (!path.has(node)) {
+				taintNode(this.taint, leaf, node);
+			}
+			for (const child of node.children) {
+				if (node === childTrace) {
+					continue;
+				}
+				yield * skeletonEnc(child, seed, leaf, path, this.crypto);
+			}
+			for (const [leafOther, _] of this.taint) {
+				if (leafOther === leaf) {
+					continue;
+				}
+				const path = new Set(leafOther.getPath(epoch));
+				if (path.has(node) || !this.regionDec.isInRegion(node, leafOther, epoch, root, path)) {
+					continue;
+				}
+				assert(leafOther.data.pk);
+				this.crypto.PKE_Enc(leafOther.data.pk, seed);
+				taintNode(this.taint, leafOther, node);
+			}
+		}
+		assert(skeletonExtra.size === 0);
 	}
 }
 	);
