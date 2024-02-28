@@ -114,7 +114,7 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
 
 import {TreeTypes} from './mod.js';
 
-for (const [desc, TreeType] of TreeTypes.entries()) {
+for (const [desc, TreeType] of TreeTypes) {
 	Deno.test(`test tree: ${desc}; random small`, () => testTree(TreeType, 30, 1000, false));
 	Deno.test(`test tree: ${desc}; random large`, () => testTree(TreeType, 600, 10000));
 	Deno.test(`test tree: ${desc}; random giant`, () => testTree(TreeType, 10000, 100000));
