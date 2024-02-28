@@ -471,16 +471,16 @@ We assume the state of the TreeKEM protocol includes a tree `t`.
 
 > For now our implementation provides operations over a *global* view of the TreeKEM protocol.
 
-Method `init((id[1], pk[1]), …, (id[n], pk[n]))`:
+Method `init((id[1], pk[1], sk[1]), …, (id[n], pk[n], sk[n]))`:
 01. let `t := Tree.init(n)` (with skeleton `t`)
-01. write `(id[i], pk[i])` in the `i`-th leaf, for `i ∈ [n]`
+01. write `id[i], pk[i], sk[i]` in the `i`-th leaf, for `i ∈ [n]`
 01. let `r` be the path from the leaf for `id[1]` to the root
     > Here we suppose `id[1]` is the user who initializes the group.
 01. `skeletonGen(t, t, r)`
 
-Method `add(id, id', pk')`:
+Method `add(id, id', pk', sk')`:
 01. let `l` be the leaf for `id`
-01. let `l'` be a new leaf, and write `(id', pk')` in `l'`
+01. let `l'` be a new leaf, and write `id', pk', sk'` in `l'`
 01. let `t' := Tree.add(t, l'; l)`, with skeleton `s`
 01. let `r` be the path from `l` to the root of `t'`
 01. `skeletonGen(t', s, r)`
@@ -520,7 +520,7 @@ Function `skeletonGen(t, s, r)`:
     01. for `j ∈ [h[i]]`:
         01. let `(seed[i,j+1], secret) := PRG(seed[i,j])`
         01. let `(pk, sk) := PKE.Gen(secret)`
-        01. write `(pk, sk)` in `v[i,j]`
+        01. write `pk, sk` in `v[i,j]`
         01. set "unmerged nodes" at `v` to be `[]`
 01. for each `seed[i,j]` at `v[i,j]`:
     01. `skeletonEnc(seed[i,j], v[i,j], v[i,j-1])` (if `j = 1` then `v[i,j-1] := null`)
