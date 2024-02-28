@@ -1,17 +1,13 @@
 import {range, randint} from './utils.js';
 
-import CounterCrypto from './crypto/counter.js';
-const crypto = new CounterCrypto();
-
 const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 	const TreeKEM = new TreeKEMType();
-	const ks = Array.from(Array(n), () => crypto.PKE_Gen(crypto.random()));
-	const id_pks = ks.map((k, i) => [i, k[0]]);
-	const cryptoOld = TreeKEM.init(id_pks);
-	if (verbose >= 1) console.log('init stat', cryptoOld.stat);
-	if (verbose >= 3) TreeKEM.tree.print();
 	const users = [...range(n)];
 	let userLast = n-1;
+	const cryptoOld = TreeKEM.init(users);
+	if (verbose >= 1) console.log('init stat', cryptoOld.stat);
+	TreeKEM._fill();
+	if (verbose >= 3) TreeKEM.tree.print();
 	const count = [0, 0, 0];
 	for (const t of range(T)) {
 		const op = randint(3);
@@ -22,8 +18,7 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 				const user = users[randint(users.length)];
 				users.push(userNew);
 				if (verbose >= 1) console.log('add', userNew, 'by', user, 'at', t);
-				const [pk, _] = crypto.PKE_Gen(crypto.random());
-				TreeKEM.add(user, userNew, pk);
+				TreeKEM.add(user, userNew);
 				if (verbose >= 3) TreeKEM.tree.print();
 			} break;
 			case 1: {
@@ -59,6 +54,8 @@ import {TreeTypes, DefaultTreeTypes} from './trees/mod.js';
 
 import {RegionTypes} from './regions/mod.js';
 import {makeDepthRegion} from './regions/DepthRegion.js';
+
+import CounterCrypto from './crypto/counter.js';
 
 const TreeKEMTypes = new Map();
 for (const usingUnmergedNodes of [false, true])

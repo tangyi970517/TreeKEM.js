@@ -182,20 +182,22 @@ class TreeKEM {
 		this.crypto = new Crypto();
 	}
 
-	init(id_pks) {
+	init(ids) {
 		++this.epoch;
-		const n = id_pks.length;
+		const n = ids.length;
 		assert(this.tree === null);
 		this.tree = TreeType.init(n, this.epoch);
 		for (const leaf of this.tree.getLeaves(true)) {
 			const i = this.users.size;
-			const [id, pk] = id_pks[i];
-			this.constructor.initData(leaf, id, pk);
+			const id = ids[i];
+			const [pk, sk] = this.crypto.PKE_Gen(this.crypto.random());
+			const k = this.crypto.SKE_Gen(this.crypto.random());
+			this.constructor.initData(leaf, id, pk, sk, k);
 			this.users.set(id, leaf);
 		}
 		assert(this.users.size === n);
 
-		const [a] = id_pks[0];
+		const a = ids[0];
 		const ua = this.users.get(a);
 
 		const skeletonExtra = new Set();
@@ -214,14 +216,17 @@ class TreeKEM {
 		leaf.data.pk = pk;
 		leaf.data.sk = sk;
 		leaf.data.kk = k;
+		leaf.data.taintBy = null;
 		leaf.data.sizeBlank = 0;
 	}
 
-	add(a, b, pk, clearingOldNodes = true) {
+	add(a, b, clearingOldNodes = true) {
 		assert(this.users.has(a) && !this.users.has(b));
 		++this.epoch;
 		const leafNew = new TreeType(this.epoch);
-		this.constructor.initData(leafNew, b, pk);
+		const [pk, sk] = this.crypto.PKE_Gen(this.crypto.random());
+		const k = this.crypto.SKE_Gen(this.crypto.random());
+		this.constructor.initData(leafNew, b, pk, sk, k);
 		this.users.set(b, leafNew);
 		const ua = this.users.get(a), ub = this.users.get(b);
 		const treeOld = this.tree;
