@@ -474,34 +474,31 @@ We assume the state of the TreeKEM protocol includes a tree `t`.
 Method `init((id[1], pk[1], sk[1]), …, (id[n], pk[n], sk[n]))`:
 01. let `t := Tree.init(n)` (with skeleton `t`)
 01. write `id[i], pk[i], sk[i]` in the `i`-th leaf, for `i ∈ [n]`
-01. let `r` be the path from the leaf for `id[1]` to the root
+01. `skeletonGen(id[1], t, t)`
     > Here we suppose `id[1]` is the user who initializes the group.
-01. `skeletonGen(t, t, r)`
 
 Method `add(id, id', pk', sk')`:
 01. let `l` be the leaf for `id`
 01. let `l'` be a new leaf, and write `id', pk', sk'` in `l'`
 01. let `t' := Tree.add(t, l'; l)`, with skeleton `s`
-01. let `r` be the path from `l` to the root of `t'`
-01. `skeletonGen(t', s, r)`
+01. `skeletonGen(id, t', s)`
 
 Method `remove(id, id')`:
 01. let `l`, `l'` be the leaves for `id`, `id'`, respectively
 01. let `t' := Tree.remove(t, l'; l)`, with skeleton `s`
 01. if `s` is empty then `s := {[roof of t']}`
-01. let `r` be the path from `l` to the root of `t'`
-01. `skeletonGen(t', s, r)`
+01. `skeletonGen(id, t', s)`
 
 Method `update(id', id ?= id')`:
 01. let `l`, `l'` be the leaves for `id`, `id'`, respectively
 01. let `s` be the path from `l'` to the root
-01. let `r` be the path from `l` to the root
-01. `skeletonGen(t, s, r)`
+01. `skeletonGen(id, t, s)`
 
 All methods above share the subroutine `skeletonGen`, described below.
 To recall, the skeletons given by the tree operations and their path decompositions are implemented in implicit ways, so they are not really written down and passed around.
 
-Function `skeletonGen(t, s, r)`:
+Function `skeletonGen(id, t, s)`:
+01. let `r` be the path from the leaf for `id` to the root of `t`
 01. blank `s \ r`
 01. for each path `P[1], …, P[I]`, where `P[i] = (v[i,1], …, v[i,h[i]])` in `s ∩ r`:
     > The nodes in `P[i]` are listed bottom-up; also the paths themselves are sorted bottom-up.
@@ -549,7 +546,7 @@ As a generalization, we replace the *paths* in the invariant with general *secre
 For ease of the (generalized) algorithms, we restrict that a user's secret region must at least include the path from the user's leaf to the root of the tree, and must not include other users' leaves.
 Under this restriction, it is sometimes more convenient to speak about the *additional secret region*, which excludes the path.
 
-The actual secret regions in the algorithms are determined by a *secret region strategy*, which we denote by `region(user: Leaf, node: Tree) -> Boolean`, meaning whether the `user`'s *additional* secret region includes `node`;
+The actual secret regions in the algorithms are determined by a *secret region strategy*, which we denote by `region(user, node) -> Boolean`, meaning whether the `user`'s *additional* secret region includes `node`;
 it is plausible that the actual secret region strategy wants more information from the protocol, and one can easily adapt the interface to the demands.
 Moreover, we actually have two independent secret region strategies in the algorithm, and we name the two as `regionGen` and `regionEnc`; the reason behind the naming would be obvious in the context.
 
@@ -559,16 +556,16 @@ A node is called *tainted* if it has non-empty "tainting" user set.
 The algorithms generalize as follows.
 - In `remove` and `update`:
   - add the *additional* secret region of `id'` to `s`; moreover, the nodes should be added in a "path-/parent-closed" way, such that for every `v ∈ s`, we have `parent(v) ∈ s` as well
+    (for `remove`, only add the nodes that still exist in the current tree)
     > Note that this way, the skeleton `s` after adding the nodes must still be connected.
-- In `init`/`add`/`remove`/`update`
-  - `r` now consists of a path `p` along with its corresponding user `user`
 - In `skeletonGen`:
+  - `r` now consists of the path `p` for user `user := id` along with the additional secret region of `user`
   - whether `v ∈ s \ r` or is part of `s ∩ r` is decided by whether `v ∈ s \ p ∧ ¬regionGen(user, v)`
   - (after blanking `v ∈ s \ r`, `v` is no longer tainted)
   - for each `v[i,j] ∈ s ∩ r` with freshly generated secrets, if (and only if) `v[i,j] ∈ s \ p` then `v[i,j]` is considered tainted by `user`
   - for each `v[i,j]`, for each other user `user'` with public key `pk'` (at the leaf for `user'`), if `regionEnc(user', v)` then `PKE.Enc(pk', seed[i,j])`, and `v[i,j]` is (also) tainted by `user'`
     > It would be inefficient to iterate over all users and check if `regionEnc(user', v)` is satisfied, and one needs to build extra data structure in `regionEnc` for (approximately) generating the satisfying users.
-- In `recompose`:
+- When combining with the "unmerged nodes" optimization, in `recompose`:
   - inherit the "tainting" users when copying secrets
 
 It can be verified that the above changes become no-op if additional secret region is always empty (i.e., if `regionEnc` and `regionDec` always return `false`).
@@ -582,7 +579,7 @@ To enable the replacing, we make the following changes to the algorithms:
 - In `skeletonGen`:
   - for each `v[i,j] ∈ s ∩ r` with freshly generated secrets, PRG-expand further by `(seed[i,j+1], secret, secret') := PRG(seed[i,j])` instead, generate SKE key `k := SKE.Gen(secret')`, and write `k` in `v[i,j]` as well
 - In `skeletonEnc`:
-  - (pass the relevant user `user` all the way through to `skeletonEnc`, similarly to in tainting)
+  - (pass the relevant user `user` from `skeletonGen` to `skeletonEnc`)
   - before checking for `pk`, if `c` is non-blank and has SKE key `k` *and `c` is in the secret region of `user`* then `SKE.Enc(k, seed)` (and return)
     > Here we write in terms of general secret regions; to remark, this optimization is (almost) useless (and merely wastes space for storing SKE keys) if the secret regions are just paths.
     <!---->
