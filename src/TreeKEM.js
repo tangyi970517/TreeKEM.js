@@ -153,12 +153,13 @@ const skeletonEnc = function * (root, seed, leaf, path, crypto) {
 		}
 		if (root.data.unmerged) {
 			for (const node of root.data.unmerged) {
-				skeletonEnc(node, seed, leaf, path, crypto);
+				yield * skeletonEnc(node, seed, leaf, path, crypto);
 			}
 		}
 	} else {
+		assert(!root.isLeaf);
 		for (const child of root.children) {
-			skeletonEnc(child, seed, leaf, path, crypto);
+			yield * skeletonEnc(child, seed, leaf, path, crypto);
 		}
 	}
 };
