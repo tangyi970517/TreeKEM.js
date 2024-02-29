@@ -64,7 +64,7 @@ const rinseTill = (taintMap, node, epochNew, rootNew) => {
 	rinseNode(taintMap, node);
 };
 
-const skeletonGen = function * (root, epoch, skeletonExtra, path, regionPredicate, crypto) {
+const skeletonGen = function * (root, epoch, skeletonExtra, path, regionPredicate, crypto, trace = new Map()) {
 	assert(isSkeleton(root, epoch, skeletonExtra));
 	skeletonExtra.delete(root);
 	if (root.isAllRemoved) {
@@ -79,32 +79,36 @@ const skeletonGen = function * (root, epoch, skeletonExtra, path, regionPredicat
 	 *
 	 * choose trace for PRG:
 	 * - must be in skeleton and in region
+	 * - choose given `trace` if valid
 	 * - choose `childTrace` if valid
 	 * - otherwise choose, e.g., first valid
 	 *
 	 */
-	let firstInSkeletonCapRegion = null
-	let childTrace = null;
+	const childTraceGiven = trace.get(root);
+	let traceInSkeletonCapRegion = null;
+	let childTraceInSkeletonCapRegion = null;
+	let firstInSkeletonCapRegion = null;
 	for (const [i, child] of root.children.entries()) {
 		if (!(isInSkeleton[i] && (path.has(child) || regionPredicate(child)))) {
 			continue;
 		}
+		if (child === childTraceGiven) {
+			traceInSkeletonCapRegion = child;
+		}
+		if (child === root.childTrace) {
+			childTraceInSkeletonCapRegion = child;
+		}
 		if (firstInSkeletonCapRegion === null) {
 			firstInSkeletonCapRegion = child;
 		}
-		if (child === root.childTrace) {
-			childTrace = child;
-		}
 	}
-	if (childTrace === null) {
-		childTrace = firstInSkeletonCapRegion;
-	}
+	const childTrace = traceInSkeletonCapRegion ?? childTraceInSkeletonCapRegion ?? firstInSkeletonCapRegion;
 	let seedTrace = null;
 	for (const [i, child] of root.children.entries()) {
 		if (!isInSkeleton[i]) {
 			continue;
 		}
-		const seed = yield * skeletonGen(child, epoch, skeletonExtra, path, regionPredicate, crypto);
+		const seed = yield * skeletonGen(child, epoch, skeletonExtra, path, regionPredicate, crypto, trace);
 		if (child === childTrace) {
 			seedTrace = seed;
 		}
@@ -133,6 +137,9 @@ const skeletonGen = function * (root, epoch, skeletonExtra, path, regionPredicat
 
 const skeletonEnc = function * (root, seed, leaf, path, crypto) {
 	if (root.isAllRemoved) {
+		return;
+	}
+	if (root === leaf) {
 		return;
 	}
 	assert(!root.isLeaf || root.data.pk);
@@ -202,9 +209,8 @@ class TreeKEM {
 
 		const skeletonExtra = new Set();
 
-		const path = new Set(ua.getPath(this.epoch));
 		for (const _ of function * () {
-		yield * this.processSkeleton(this.epoch, this.tree, skeletonExtra, ua, path);
+		yield * this.processSkeleton(ua, this.tree, this.epoch, skeletonExtra);
 		}.bind(this)()) ;
 
 		const cryptoOld = this.crypto;
@@ -233,9 +239,8 @@ class TreeKEM {
 
 		const skeletonExtra = new Set();
 
-		const path = new Set(ua.getPath(this.epoch));
 		for (const _ of function * () {
-		yield * this.processSkeleton(this.epoch, this.tree, skeletonExtra, ua, path);
+		yield * this.processSkeleton(ua, this.tree, this.epoch, skeletonExtra);
 		}.bind(this)()) ;
 
 		rinseTill(this.taint, treeOld, this.epoch, this.tree);
@@ -279,9 +284,8 @@ class TreeKEM {
 			this.taint.delete(ub);
 		}
 
-		const path = new Set(ua.getPath(this.epoch));
 		for (const _ of function * () {
-		yield * this.processSkeleton(this.epoch, this.tree, skeletonExtra, ua, path);
+		yield * this.processSkeleton(ua, this.tree, this.epoch, skeletonExtra);
 		}.bind(this)()) ;
 
 		rinseTill(this.taint, treeOld, this.epoch, this.tree);
@@ -310,15 +314,24 @@ class TreeKEM {
 			}
 		}
 
-		const path = new Set(ua.getPath(this.epoch));
 		for (const _ of function * () {
-		yield * this.processSkeleton(this.epoch, this.tree, skeletonExtra, ua, path);
+		yield * this.processSkeleton(ua, this.tree, this.epoch, skeletonExtra);
 		}.bind(this)()) ;
 	}
 
-	* processSkeleton(epoch, root, skeletonExtra, leaf, path) {
+	* processSkeleton(leaf, root, epoch, skeletonExtra) {
+		const traceOverwrite = new Map();
+		let nodePrev = null;
+		for (const node of leaf.getPath(epoch)) {
+			if (nodePrev) {
+				traceOverwrite.set(node, nodePrev);
+			}
+			nodePrev = node;
+		}
+		const path = traceOverwrite;
+
 		const regionPredicate = node => this.regionEnc.isInRegion(node, leaf, epoch, root, path);
-		for (const [node, seed, childTrace] of skeletonGen(root, epoch, skeletonExtra, path, regionPredicate, this.crypto)) {
+		for (const [node, seed, childTrace] of skeletonGen(root, epoch, skeletonExtra, path, regionPredicate, this.crypto, traceOverwrite)) {
 			assert(!node.isLeaf);
 			assert(childTrace === null || node.children.indexOf(childTrace) >= 0);
 			rinseNode(this.taint, node);
