@@ -119,6 +119,11 @@ In `add`:
 01. with probability `m/(m+1)`, return `GenericLazy.add(t, l; null)` (notice the null hint, which lets `GenericLazy.add` choose a random "removed" leaf)
 01. with probability `1/(m+1)`, return `append(t, l)`
 
+#### [Legacy] Variant: append-only
+
+In `add`:
+do not `GenericLazy.add` and always `append`.
+
 #### Variant: no-truncate
 
 In `remove`:
