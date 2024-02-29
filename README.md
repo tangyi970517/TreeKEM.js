@@ -573,6 +573,31 @@ The algorithms generalize as follows.
 
 It can be verified that the above changes become no-op if additional secret region is always empty (i.e., if `regionEnc` and `regionDec` always return `false`).
 
+### Optimization: Use SKE instead of PKE when Possible
+
+PKE encryptions are commonly orders of magnitudes slower than SKE encryptions.
+Hence when the space is not a big concern, it would be valuable if one can replace PKE encryptions by SKE encryptions in cost of storing extra SKE keys.
+
+To enable the replacing, we make the following changes to the algorithms:
+- In `skeletonGen`:
+  - for each `v[i,j] ∈ s ∩ r` with freshly generated secrets, PRG-expand further by `(seed[i,j+1], secret, secret') := PRG(seed[i,j])` instead, generate SKE key `k := SKE.Gen(secret')`, and write `k` in `v[i,j]` as well
+- In `skeletonEnc`:
+  - (pass the relevant user `user` all the way through to `skeletonEnc`, similarly to in tainting)
+  - before checking for `pk`, if `c` is non-blank and has SKE key `k` *and `c` is in the secret region of `user`* then `SKE.Enc(k, seed)` (and return)
+    > Here we write in terms of general secret regions; to remark, this optimization is (almost) useless (and merely wastes space for storing SKE keys) if the secret regions are just paths.
+    <!---->
+    > Note that when combining with the "unmerged nodes" optimization, one still needs to recurse in this branch if there are "unmerged nodes" at `c`.
+
+It can be observed that regarding the running time, this optimization will:
+- replace some of the PKE encryptions *1:1* by SKE encryptions
+- use longer PRG expansions (from double to triple length)
+- introduce SKE key generations, the number of which is the same as existing PKE key generations
+
+Alternatively, since the used SKE key is always in the secret region, one could make the SKE key generations lazy and, e.g., derive the SKE key `k` from the PKE secret key `sk` when `k` is needed.
+This way there is no longer the space (or PRG) overhead, and the SKE key generation overhead is bound to the number of SKE encryptions instead of PKE key generations.
+> A caveat for the alternative approach is that it may hurt the *forward secrecy* (FS) of the protocol.
+> To achieve the strongest notion of FS requires to use *updatable* PKE (and updatable SKE), and if the lazy SKE key generation does not refresh the underlying `sk` then the strongest FS would break.
+
 ### [Archaic] TreeKEM strategies preceding the notion of skeletons
 
 The following TreeKEM strategies are obsolete and no longer supported in the latest codes.
