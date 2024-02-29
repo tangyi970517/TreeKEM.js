@@ -474,24 +474,27 @@ We assume the state of the TreeKEM protocol includes a tree `t`.
 Method `init((id[1], pk[1], sk[1]), …, (id[n], pk[n], sk[n]))`:
 01. let `t := Tree.init(n)` (with skeleton `t`)
 01. write `id[i], pk[i], sk[i]` in the `i`-th leaf, for `i ∈ [n]`
-01. `skeletonGen(id[1], t, t)`
+01. let `t*` be `t` but without the leaves
+01. `skeletonGen(id[1], t, t*)`
     > Here we suppose `id[1]` is the user who initializes the group.
 
 Method `add(id, id', pk', sk')`:
 01. let `l` be the leaf for `id`
 01. let `l'` be a new leaf, and write `id', pk', sk'` in `l'`
-01. let `t' := Tree.add(t, l'; l)`, with skeleton `s`
+01. let `t' := Tree.add(t, l'; l)`, with skeleton `s` (excluding `l'`)
 01. `skeletonGen(id, t', s)`
 
 Method `remove(id, id')`:
 01. let `l`, `l'` be the leaves for `id`, `id'`, respectively
 01. let `t' := Tree.remove(t, l'; l)`, with skeleton `s`
 01. if `s` is empty then `s := {[roof of t']}`
+    > As an extreme corner case, if `s` is empty and `t'` is just a single leaf node, then it means the current group is remained with just one single user, and the user can just (refresh the group secret and) return here.
 01. `skeletonGen(id, t', s)`
 
 Method `update(id', id ?= id')`:
 01. let `l`, `l'` be the leaves for `id`, `id'`, respectively
-01. let `s` be the path from `l'` to the root
+01. let `s` be the path from `l'` to the root (excluding `l'`)
+    > Similarly to `remove`, if `s` is empty then it means the current tree `t` is just `l'` and the current group is just one single user, and the user can just (refresh the group secret and) return here.
 01. `skeletonGen(id, t, s)`
 
 All methods above share the subroutine `skeletonGen`, described below.
@@ -509,16 +512,19 @@ Function `skeletonGen(id, t, s)`:
         01. let `(pk, sk) := PKE.Gen(secret)`
         01. write `pk, sk` in `v[i,j]`
 01. for each `seed[i,j]` at `v[i,j]`:
-    01. `skeletonEnc(seed[i,j], v[i,j], v[i,j-1])` (if `j = 1` then `v[i,j-1] := null`)
+    01. `skeletonEnc(id, seed[i,j], v[i,j], v[i,j-1])` (if `j = 1` then `v[i,j-1] := null`)
+        > Note that `v[i,j] ∈ s ∩ r` is always an internal node, as (1) `s` never contains the leaf node for user `id` (e.g., observe that the part of the skeleton `s` produced by the tree operations never contains the "old" leaf node for user `id`), and (2) `r` never contains any leaf node for users other than `id`.
 01. let `seed[I,h[I]+1]` be the group secret
     > Note that the skeleton `s` passed to `skeletonGen` always contains the root of `t`.
     > Also note that `v[I,h[I]]` must be the root of `t` due to the bottom-up sorting.
 
-Function `skeletonEnc(seed, v, c*)`:
+Function `skeletonEnc(id, seed, v, c*)`:
 01. for each child `c` of `v`:
     01. if `c = c*` then continue
+    01. if `c` is the leaf for `id` then continue
     01. if `c` is non-blank, i.e., there is `pk` in `c` then `PKE.Enc(pk, seed)`
-    01. if `c` is blank then `skeletonEnc(seed, c, null)`
+    01. if `c` is blank then `skeletonEnc(id, seed, c, null)`
+        > Note that leaf nodes are always non-blank as they hold the long-term keys for the users. Hence the recursion always gets to an internal node.
 
 ### Optimization: Reuse "Old" Secrets
 
@@ -537,7 +543,7 @@ We then make the following changes to the algorithms:
   - for each `v ∈ s \ r`, besides blanking, also apply `recompose(v)`
   - (set "unmerged nodes" to be `[]` for freshly generated secrets)
 - In `skeletonEnc`:
-  - besides `PKE.Enc(pk, seed)`, if there are "unmerged nodes" `[c[1], …, c[m]]` at `c` then `skeletonEnc(seed, c[i], null)`, for `i ∈ [m]`
+  - besides `PKE.Enc(pk, seed)`, if there are "unmerged nodes" `[c[1], …, c[m]]` at `c` then `skeletonEnc(id, seed, v*, null)`, for a virtual node `v* := (c[1], …, c[m])` collecting the "unmerged nodes" as children
 
 ### Generalization: Secret Region and Tainting
 
@@ -579,7 +585,6 @@ To enable the replacing, we make the following changes to the algorithms:
 - In `skeletonGen`:
   - for each `v[i,j] ∈ s ∩ r` with freshly generated secrets, PRG-expand further by `(seed[i,j+1], secret, secret') := PRG(seed[i,j])` instead, generate SKE key `k := SKE.Gen(secret')`, and write `k` in `v[i,j]` as well
 - In `skeletonEnc`:
-  - (pass the relevant user `user` from `skeletonGen` to `skeletonEnc`)
   - before checking for `pk`, if `c` is non-blank and has SKE key `k` *and `c` is in the secret region of `user`* then `SKE.Enc(k, seed)` (and return)
     > Here we write in terms of general secret regions; to remark, this optimization is (almost) useless (and merely wastes space for storing SKE keys) if the secret regions are just paths.
     <!---->

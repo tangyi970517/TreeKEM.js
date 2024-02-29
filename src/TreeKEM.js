@@ -261,7 +261,7 @@ class TreeKEM {
 
 		const skeletonExtra = new Set();
 		const root = this.tree;
-		if (root.epoch < this.epoch) {
+		if (root.epoch < this.epoch && !root.isLeaf) {
 			skeletonExtra.add(root);
 		}
 		if (this.taint.has(ub)) {
@@ -284,6 +284,8 @@ class TreeKEM {
 			this.taint.delete(ub);
 		}
 
+		assert((root.epoch === this.epoch || skeletonExtra.size > 0) || this.users.size === 1);
+		if (root.epoch === this.epoch || skeletonExtra.size > 0)
 		for (const _ of function * () {
 		yield * this.processSkeleton(ua, this.tree, this.epoch, skeletonExtra);
 		}.bind(this)()) ;
@@ -301,7 +303,7 @@ class TreeKEM {
 		++this.epoch;
 		const ua = this.users.get(a), ub = this.users.get(b);
 
-		const skeletonExtra = new Set(ub.getPath(this.epoch));
+		const skeletonExtra = new Set(ub.getPath(this.epoch, false));
 		if (this.taint.has(ub)) {
 			for (const node of this.taint.get(ub)) {
 				assert(node.getRoot(this.epoch, true) === this.tree);
@@ -314,6 +316,8 @@ class TreeKEM {
 			}
 		}
 
+		assert(skeletonExtra.size > 0 || this.users.size === 1);
+		if (skeletonExtra.size > 0)
 		for (const _ of function * () {
 		yield * this.processSkeleton(ua, this.tree, this.epoch, skeletonExtra);
 		}.bind(this)()) ;
