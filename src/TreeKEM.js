@@ -12,7 +12,7 @@ const recompose = (node, taintMap) => {
 		return;
 	}
 	if (!nodeMain.data.pk) {
-		recompose(nodeMain);
+		recompose(nodeMain, taintMap);
 	}
 	if (nodeMain.data.pk) {
 		node.data.pk = nodeMain.data.pk;
@@ -125,6 +125,8 @@ const makeTreeKEM = (
 	Crypto = DefaultCrypto,
 	{
 		usingUnmergedNodes = true,
+		usingUnmergedNodesForBlank = usingUnmergedNodes,
+		usingUnmergedNodesForSecret = usingUnmergedNodes,
 	} = {},
 	TreeType = LeftTree,
 	RegionTypeEnc = PathRegion, RegionTypeDec = PathRegion,
@@ -290,23 +292,29 @@ class TreeKEM {
 			assert(!node.isLeaf);
 			assert(childTrace === null || node.children.indexOf(childTrace) >= 0);
 			node.data.sizeBlank = sum(node.children.map(child => child.data.sizeBlank ?? 0), Number(!isInRegion));
+			node.data.pk = null;
+			node.data.sk = null;
+			node.data.kk = null;
+			node.data.unmerged = null;
 			rinseNode(this.taint, node);
 			if (!isInRegion) {
-				node.data.pk = null;
-				node.data.sk = null;
-				node.data.kk = null;
-				node.data.unmerged = null;
-				if (usingUnmergedNodes) {
+				if (usingUnmergedNodesForBlank) {
 					recompose(node, this.taint);
 				}
 				continue;
 			}
+			if (usingUnmergedNodesForSecret) {
+				recompose(node, this.taint);
+				if (node.data.pk) {
+					continue;
+				}
+			}
 			let seed;
-			if (childTrace) {
-				assert(seedMap.has(childTrace));
+			if (seedMap.has(childTrace)) {
 				seed = seedMap.get(childTrace);
 				seedMap.delete(childTrace);
 			} else {
+				assert(!childTrace || usingUnmergedNodesForSecret);
 				seed = this.crypto.random();
 			}
 			const [seedNext, secret, secretSKE] = this.crypto.PRG(seed, 3);
@@ -337,10 +345,10 @@ class TreeKEM {
 		}
 		assert(skeletonExtra.size === 0);
 
-		if (seedMap.size > 0) {
-			assert(seedMap.has(root));
+		if (seedMap.has(root)) {
 			this.secret = seedMap.get(root);
 		} else {
+			assert(seedMap.size === 0 || usingUnmergedNodesForSecret);
 			this.secret = this.crypto.random();
 			yield * this.skeletonEnc(root, this.secret, leaf, path);
 		}
