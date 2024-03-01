@@ -97,6 +97,7 @@ Function `append(t: LBBT, l: Leaf) -> LBBT`:
 Function `truncate(t: LBBT) -> LBBT?`:
 > This function truncates a tree with "removed" nodes, so that the rightmost leaf is not "removed" (and non-"removed" leaves remain untouched).
 01. if all leaves in `t` are "removed" then return `null`
+01. if `t` is leaf then return `t`
 01. let `(tl, tr) := t`
 01. let `tr' := truncate(tr)`
 01. if `tr' ≠ null` then return `(tl, tr')`
@@ -128,6 +129,15 @@ do not `GenericLazy.add` and always `append`.
 
 In `remove`:
 do not `truncate` and return `t'` directly.
+
+#### Variant: perfect mode
+
+In perfect mode, LBBT is restricted to always be a *perfect* binary tree (of course allowing "removed" leaves).
+The algorithms change as follows.
+
+- In `init`: create a perfect binary tree with height `h := ceil(log2(n))`, where the rightmost `2^h - n` leaves are "removed"
+- In `append`: create a perfect binary tree `tr` with the same height as `t`, and with leftmost leaf `l` (and other leaves in `tr` are all "removed"); return `(t, tr)`
+- In `truncate`: instead of computing `tr'`, if not all leaves in `tr` are "removed" then return `t` (and otherwise still return `truncate(tl)` recursively)
 
 #### Variant: balanced LBBT
 
