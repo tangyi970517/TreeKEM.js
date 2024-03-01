@@ -4,6 +4,7 @@ export * from './BTree.js';
 export * from './LLRBTree.js';
 
 import {LeftTreeEnums, makeLeftTree} from './LeftTree.js';
+import {PerfectTreeEnums, makePerfectTree} from './PerfectTree.js';
 import {BTreeEnums, makeBTree, make23Tree, make234Tree} from './BTree.js';
 import {LLRBTreeEnums, makeLLRBTree} from './LLRBTree.js';
 
@@ -14,6 +15,12 @@ for (const position of LeftTreeEnums.position)
 for (const truncate of LeftTreeEnums.truncate)
 {
 	TreeTypes.set(`left: pos=${position}, rem=${truncate}`, makeLeftTree(position, truncate));
+}
+
+for (const position of PerfectTreeEnums.position)
+for (const truncate of PerfectTreeEnums.truncate)
+{
+	TreeTypes.set(`left: perfect, pos=${position}, rem=${truncate}`, makePerfectTree(position, truncate));
 }
 
 for (const position of BTreeEnums.position)
@@ -40,6 +47,7 @@ export
 const DefaultTreeTypes = new Map();
 
 DefaultTreeTypes.set('left', makeLeftTree());
+DefaultTreeTypes.set('left:perfect', makePerfectTree());
 DefaultTreeTypes.set('2-3', make23Tree());
 DefaultTreeTypes.set('2-3-4', make234Tree());
 DefaultTreeTypes.set('LLRB', makeLLRBTree());

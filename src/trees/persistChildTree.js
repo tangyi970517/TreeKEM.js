@@ -19,13 +19,19 @@ class ChildTree {
 		return this.children.length === 0;
 	}
 	* getLeaves() {
-		if (this.isLeaf) {
-			yield this;
+		//
+yield * function * getLeaves(node) {
+		//
+		if (node.isLeaf) {
+			yield node;
 			return;
 		}
-		for (const child of this.children) {
-			yield * child.getLeaves(true);
+		for (const child of node.children) {
+			yield * getLeaves(child);
 		}
+		//
+}(this);
+		//
 	}
 	getRandomLeaf() {
 		if (this.isLeaf) {

@@ -243,6 +243,23 @@ class SparseTree extends Tree {
 		return null;
 	}
 
+	* getSparseLeaves() {
+		if (this.isAllRemoved) {
+			return;
+		}
+		if (this.isLeaf) {
+			yield this;
+			return;
+		}
+		for (const child of this.children) {
+			yield * child.getSparseLeaves();
+		}
+	}
+	* getLeaves(acknowledgingComplexity = false) {
+		assert(acknowledgingComplexity, 'O(n) time complexity');
+		yield * this.getSparseLeaves();
+	}
+
 	add(epoch, leaf, hint = null) {
 		if (this.sizeLeafRemoved === 0) {
 			throw new TypeError('generic add method infeasible');
