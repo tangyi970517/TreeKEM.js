@@ -145,7 +145,7 @@ class Tree extends ChildTree {
 			return node;
 		}
 		const parentNew = new this.constructor(epoch, replace(parent.children, this, node), node);
-		return parent.replace(epoch, parentNew);
+		return parent.replace(epoch, parentNew, plugin);
 	}
 
 	static init(n, epochInit = 0) {

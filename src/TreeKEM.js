@@ -350,7 +350,7 @@ class TreeKEM {
 				taintNode(this.taint, leaf, node);
 			}
 			for (const child of node.children) {
-				if (node === childTrace) {
+				if (child === childTrace) {
 					continue;
 				}
 				yield * skeletonEnc(child, seed, leaf, path, this.crypto);
