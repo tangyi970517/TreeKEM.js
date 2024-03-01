@@ -93,7 +93,7 @@ class LLRBTree extends BaseTree {
 
 		this.B = null;
 
-		this.colorPattern = '♣️♠️'; // for fun
+		this.colorPattern = '♣\ufe0f♠\ufe0f'; // for fun
 	}
 
 	get info() {
@@ -150,7 +150,7 @@ class LLRBTree extends BaseTree {
 				if (children.length === 3) {
 					const childTrace3 = indexTrace >= 2 ? childTrace : traceL;
 					nodeRB = new this(epoch, [nodeL, children[2]], childTrace3);
-					nodeRB.colorPattern = '♦️♣️';
+					nodeRB.colorPattern = '♦\ufe0f♣\ufe0f';
 					break;
 				}
 				let nodeR, traceR = null;
@@ -166,7 +166,7 @@ class LLRBTree extends BaseTree {
 				}
 				const childTrace4 = indexTrace >= 2 ? nodeR : (traceL ?? traceR);
 				nodeRB = new this(epoch, [nodeL, nodeR], childTrace4);
-				nodeRB.colorPattern = '♥️♦️';
+				nodeRB.colorPattern = '♥\ufe0f♦\ufe0f';
 			} break;
 			default: {
 				assert(false);
@@ -191,6 +191,7 @@ class LLRBTree extends BaseTree {
 		const leafB = new BTree(epoch);
 		leaf.B = leafB;
 		leafB.RB = leaf;
+		leaf.colorPattern = '';
 		if (isLazy && this.sizeLeafRemoved > 0) {
 			return super.add(epoch, leaf, hint);
 		}

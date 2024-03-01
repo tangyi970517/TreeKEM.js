@@ -185,14 +185,44 @@ class Tree extends ChildTree {
 	get info() {
 		return [this.epoch, this.data, this.debug];
 	}
-	print(hasNextList = [], Width = 2) {
+	print(posList = [], Split = 0.5, Width = 2) {
+		/**
+		 *
+		 * `pos`:
+		 * 0. first child
+		 * 1. child in middle
+		 * 2. last child
+		 *
+		 */
+		const posListPrev = posList.slice(0, -1);
+		const posSelf = posList.slice(-1);
+		const mid = Math.floor(this.children.length * Split);
+		for (const [i, child] of this.children.slice(0, mid).entries()) {
+			child.print(posListPrev.concat(
+				posSelf.map(pos => pos === 2 ? 1 : pos),
+				Number(i > 0),
+			), Split, Width);
+		}
+		/**
+		 *
+		 * `spread`:
+		 * 0. has child on neither side, i.e., leaf
+		 * 1. only has child before
+		 * 2. only has child after
+		 * 3. has child on both sides
+		 *
+		 */
+		const spread = Number(mid > 0) + 2 * Number(mid < this.children.length);
 		console.log([
-			...hasNextList.slice(0, -1).map(hasNext => (hasNext ? '│' : ' ') + Array(Width-1).fill(' ').join('')),
-			...hasNextList.slice(-1).map(hasNextSelf => (hasNextSelf ? '├' : '└') + Array(Width-1).fill('─').join('')),
-			this.children.length > 0 ? '┮' : '╼',
+			...posListPrev.map(pos => ' │ '[pos] + Array(Width-1).fill(' ').join('')),
+			...posSelf.map(pos => '┌├└'[pos] + Array(Width-1).fill('─').join('')),
+			'╼┶┮┾'[spread],
 		].join(''), ...this.info);
-		for (const [i, child] of this.children.entries()) {
-			child.print(hasNextList.concat(i < this.children.length-1), Width);
+		for (const [i, child] of this.children.slice(mid).entries()) {
+			child.print(posListPrev.concat(
+				posSelf.map(pos => pos === 0 ? 1 : pos),
+				2 - Number(mid + i < this.children.length-1),
+			), Split, Width);
 		}
 	};
 }
