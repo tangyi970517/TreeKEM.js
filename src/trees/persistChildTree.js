@@ -4,6 +4,7 @@ class ChildTree {
 	constructor(children = []) {
 		this.children = children;
 
+		this.isLeaf = children.length === 0;
 		if (this.isLeaf) {
 			this.height = 0;
 			this.size = 1;
@@ -15,9 +16,6 @@ class ChildTree {
 		}
 	}
 
-	get isLeaf() {
-		return this.children.length === 0;
-	}
 	* getLeaves() {
 		//
 yield * function * getLeaves(node) {
