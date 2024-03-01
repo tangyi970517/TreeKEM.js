@@ -342,6 +342,7 @@ class TreeKEM {
 			this.secret = seedMap.get(root);
 		} else {
 			this.secret = this.crypto.random();
+			yield * this.skeletonEnc(root, this.secret, leaf, path);
 		}
 	}
 

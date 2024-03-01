@@ -514,7 +514,7 @@ To recall, the skeletons given by the tree operations and their path decompositi
 
 Function `skeletonGen(id, t, s)`:
 01. drop leaf nodes from `s`
-    > As a corner case, if `s` is empty after dropping all leaf nodes, then one can just (refresh the group secret and) return.
+    > As a corner case, if `s` is empty after dropping all leaf nodes, then one can just (refresh and broadcast by `skeletonEnc` the group secret and) return.
 01. let `r` be the path from the leaf for `id` to the root of `t`
 01. blank `s \ r`
 01. for each path `P[1], …, P[I]`, where `P[i] = (v[i,1], …, v[i,h[i]])` in `s ∩ r`:
