@@ -1,12 +1,16 @@
 import {assert, sum} from './utils.js';
 
-const isSkeleton = (node, epoch, skeletonExtra) => !node.isAllRemoved && (node.epoch === epoch || skeletonExtra.has(node));
+const isSkeleton = (node, epochOld, skeletonExtra) => !node.isAllRemoved && (node.epoch > epochOld || skeletonExtra.has(node));
 
 const recompose = (node, taintMap) => {
 	assert(!node.isLeaf);
 	if (!node.decompose) {
 		return;
 	}
+	if (node.data.recomposed) {
+		return;
+	}
+	node.data.recomposed = true;
 	const nodeMain = node.decompose[0];
 	if (nodeMain.isAllRemoved) {
 		return;
@@ -65,17 +69,19 @@ const rinseTill = (taintMap, node, epochNew, rootNew) => {
 	for (const child of node.children) {
 		rinseTill(taintMap, child, epochNew, rootNew);
 	}
-	rinseNode(taintMap, node);
+	if (!node.isComponent) {
+		rinseNode(taintMap, node);
+	}
 };
 
-const skeletonIter = function * (root, epoch, skeletonExtra, path, regionPredicate, trace = new Map()) {
-	assert(isSkeleton(root, epoch, skeletonExtra));
+const skeletonIter = function * (root, epochOld, epoch, skeletonExtra, path, regionPredicate, trace = new Map()) {
+	assert(isSkeleton(root, epochOld, skeletonExtra));
 	skeletonExtra.delete(root);
 	if (root.isLeaf) {
 		assert(root.data.pk);
 		return;
 	}
-	const isInSkeleton = root.children.map(child => isSkeleton(child, epoch, skeletonExtra));
+	const isInSkeleton = root.children.map(child => isSkeleton(child, epochOld, skeletonExtra));
 	/**
 	 *
 	 * choose trace for PRG:
@@ -93,7 +99,7 @@ const skeletonIter = function * (root, epoch, skeletonExtra, path, regionPredica
 		if (!isInSkeleton[i]) {
 			continue;
 		}
-		yield * skeletonIter(child, epoch, skeletonExtra, path, regionPredicate, trace);
+		yield * skeletonIter(child, epochOld, epoch, skeletonExtra, path, regionPredicate, trace);
 		if (!(path.has(child) || regionPredicate(child))) {
 			continue;
 		}
@@ -116,6 +122,15 @@ const skeletonIter = function * (root, epoch, skeletonExtra, path, regionPredica
 	yield [root, isInRegion, childTrace];
 };
 
+const insertPath = (epoch, node, set) => {
+	for (const ancestor of node.getPath(epoch)) {
+		if (set.has(ancestor)) {
+			break;
+		}
+		set.add(ancestor);
+	}
+};
+
 import DefaultCrypto from './crypto/DefaultCrypto.js';
 import LeftTree from './trees/LeftTree.js';
 import PathRegion from './regions/PathRegion.js';
@@ -124,6 +139,7 @@ export
 const makeTreeKEM = (
 	Crypto = DefaultCrypto,
 	{
+		usingProposal = true,
 		usingUnmergedNodes = true,
 		usingUnmergedNodesForBlank = usingUnmergedNodes,
 		usingUnmergedNodesForSecret = usingUnmergedNodes,
@@ -134,6 +150,8 @@ const makeTreeKEM = (
 	return (
 class TreeKEM {
 	constructor() {
+		this.secret = null;
+
 		this.tree = null;
 		this.epoch = 0;
 		this.users = new Map();
@@ -141,6 +159,9 @@ class TreeKEM {
 		this.regionEnc = new RegionTypeEnc();
 		this.regionDec = new RegionTypeDec();
 		this.taint = new Map();
+
+		this.skeletonProposal = new Set();
+		this.epochCommitted = 0;
 
 		this.crypto = new Crypto();
 		this.cryptoUser = new Crypto();
@@ -160,14 +181,7 @@ class TreeKEM {
 		}
 		assert(this.users.size === n);
 
-		assert(this.users.has(a));
-		const ua = this.users.get(a);
-
-		const skeletonExtra = new Set();
-
-		for (const _ of function * () {
-		yield * this.skeletonGen(ua, this.tree, this.epoch, skeletonExtra);
-		}.bind(this)()) ;
+		this.commit(a);
 
 		const cryptoOld = this.crypto;
 		this.crypto = new Crypto();
@@ -195,9 +209,10 @@ class TreeKEM {
 
 		const skeletonExtra = new Set();
 
-		for (const _ of function * () {
-		yield * this.skeletonGen(ua, this.tree, this.epoch, skeletonExtra);
-		}.bind(this)()) ;
+		this.insertSkeleton(skeletonExtra);
+		if (!usingProposal) {
+			this.commit(a);
+		}
 
 		rinseTill(this.taint, treeOld, this.epoch, this.tree);
 		if (clearingOldNodes) {
@@ -227,22 +242,17 @@ class TreeKEM {
 				if (node.data.taintBy.size === 0) {
 					node.data.taintBy = null;
 				}
-				if (node.getRoot(this.epoch, true) !== this.tree) {
-					continue;
-				}
-				for (const ancestor of node.getPath(this.epoch)) {
-					if (skeletonExtra.has(ancestor)) {
-						break;
-					}
-					skeletonExtra.add(ancestor);
+				if (node.getRoot(this.epoch, true) === this.tree) {
+					insertPath(this.epoch, node, skeletonExtra);
 				}
 			}
 			this.taint.delete(ub);
 		}
 
-		for (const _ of function * () {
-		yield * this.skeletonGen(ua, this.tree, this.epoch, skeletonExtra);
-		}.bind(this)()) ;
+		this.insertSkeleton(skeletonExtra);
+		if (!usingProposal) {
+			this.commit(a);
+		}
 
 		rinseTill(this.taint, treeOld, this.epoch, this.tree);
 		if (clearingOldNodes) {
@@ -253,29 +263,58 @@ class TreeKEM {
 	}
 
 	update(b, a = b) {
-		assert(this.users.has(a) && this.users.has(b));
+		assert(this.users.has(b));
 		++this.epoch;
-		const ua = this.users.get(a), ub = this.users.get(b);
+		const ub = this.users.get(b);
 
 		const skeletonExtra = new Set(ub.getPath(this.epoch));
 		if (this.taint.has(ub)) {
 			for (const node of this.taint.get(ub)) {
-				assert(node.getRoot(this.epoch, true) === this.tree);
-				for (const ancestor of node.getPath(this.epoch)) {
-					if (skeletonExtra.has(ancestor)) {
-						break;
-					}
-					skeletonExtra.add(ancestor);
+				if (node.getRoot(this.epoch, true) === this.tree) {
+					insertPath(this.epoch, node, skeletonExtra);
 				}
 			}
 		}
 
-		for (const _ of function * () {
-		yield * this.skeletonGen(ua, this.tree, this.epoch, skeletonExtra);
-		}.bind(this)()) ;
+		this.insertSkeleton(skeletonExtra);
+		if (!usingProposal) {
+			this.commit(a);
+		}
 	}
 
-	* skeletonGen(leaf, root, epoch, skeletonExtra) {
+	insertSkeleton(skeleton, filtering = true) {
+		if (filtering) {
+			for (const node of this.skeletonProposal) {
+				if (node.getRoot(this.epoch, true) !== this.tree) {
+					this.skeletonProposal.delete(node); // safe to delete while iterating `Set`
+				}
+			}
+		}
+		if (this.skeletonProposal.size === 0) {
+			this.skeletonProposal = skeleton;
+			return;
+		}
+		for (const node of skeleton) {
+			this.skeletonProposal.add(node);
+		}
+	}
+
+	commit(a) {
+		if (this.epochCommitted === this.epoch) {
+			return;
+		}
+
+		assert(this.users.has(a));
+		const ua = this.users.get(a);
+
+		for (const _ of function * () {
+		yield * this.skeletonGen(ua, this.tree, this.epochCommitted, this.epoch, this.skeletonProposal);
+		}.bind(this)()) ;
+
+		this.epochCommitted = this.epoch;
+	}
+
+	* skeletonGen(leaf, root, epochOld, epoch, skeletonExtra) {
 		const traceOverwrite = new Map();
 		let nodePrev = null;
 		for (const node of leaf.getPath(epoch)) {
@@ -288,7 +327,7 @@ class TreeKEM {
 
 		const regionPredicate = node => !node.isLeaf && this.regionEnc.isInRegion(node, leaf, epoch, root, path);
 		const seedMap = new Map();
-		for (const [node, isInRegion, childTrace] of skeletonIter(root, epoch, skeletonExtra, path, regionPredicate, traceOverwrite)) {
+		for (const [node, isInRegion, childTrace] of skeletonIter(root, epochOld, epoch, skeletonExtra, path, regionPredicate, traceOverwrite)) {
 			assert(!node.isLeaf);
 			assert(childTrace === null || node.children.indexOf(childTrace) >= 0);
 			node.data.sizeBlank = sum(node.children.map(child => child.data.sizeBlank ?? 0), Number(!isInRegion));
@@ -300,6 +339,9 @@ class TreeKEM {
 			if (!isInRegion) {
 				if (usingUnmergedNodesForBlank) {
 					recompose(node, this.taint);
+					if (node.data.pk) {
+						--node.data.sizeBlank;
+					}
 				}
 				continue;
 			}

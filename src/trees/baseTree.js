@@ -179,7 +179,6 @@ class Tree extends ChildTree {
 			child.unsetParent(this.epoch, this);
 		}
 		this.children.length = 0; // clear array
-		this.decompose = null;
 	}
 
 	get info() {

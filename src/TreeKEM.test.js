@@ -8,7 +8,7 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 	if (verbose >= 1) console.log('init stat', cryptoOld.stat);
 	TreeKEM._fill();
 	if (verbose >= 3) TreeKEM.tree.print();
-	const count = [0, 0, 0];
+	const count = [0, 0, 0, 0];
 	for (const t of range(T)) {
 		const op = randint(3);
 		++count[op];
@@ -40,11 +40,19 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 				if (verbose >= 3) TreeKEM.tree.print();
 			} break;
 		}
+		if (Math.random() < 1/3 || t === T-1) {
+			const user = users[randint(users.length)];
+			if (verbose >= 2) console.log('commit', 'by', user, 'at', t);
+			TreeKEM.commit(user);
+			if (verbose >= 3) TreeKEM.tree.print();
+			++count[3];
+		}
 	}
-	const [nAdd, nRem, nUpd] = count;
+	const [nAdd, nRem, nUpd, nCommit] = count;
 	if (verbose >= 1) console.log('add count', nAdd, '/', T);
 	if (verbose >= 1) console.log('remove count', nRem, '/', T);
 	if (verbose >= 1) console.log('update count', nUpd, '/', T);
+	if (verbose >= 1) console.log('commit count', nCommit, '/', T);
 	if (verbose >= 1) console.log('stat', TreeKEM.crypto.stat, '/', T);
 };
 
