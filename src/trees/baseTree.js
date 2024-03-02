@@ -258,10 +258,10 @@ class SparseTree extends Tree {
 	getRandomRemoved() {
 		if (this.sizeLeafRemoved === 0) {
 			return null;
+		} else if (this.sizeLeafRemoved === 1) {
+			return this.firstRemoved;
 		}
-		if (this.isLeaf) {
-			return this;
-		}
+		assert(!this.isLeaf);
 		return randomChoice(this.children, 'sizeLeafRemoved', this.sizeLeafRemoved).getRandomRemoved();
 	}
 	getClosestRemoved(epoch) {
@@ -290,13 +290,13 @@ class SparseTree extends Tree {
 		yield * this.getSparseLeaves();
 	}
 
-	add(epoch, leaf, hint = null) {
+	add(epoch, leaf, hint = null, randomizing = true) {
 		if (this.sizeLeafRemoved === 0) {
 			throw new TypeError('generic add method infeasible');
 		}
 		assert(leaf.isLeaf && leaf.getRoot(epoch) !== this);
 		assert(hint === null || /* hint.isLeaf && */ hint.getRoot(epoch) === this);
-		const leafRemoved = hint?.getClosestRemoved(epoch) ?? this.getRandomRemoved();
+		const leafRemoved = hint?.getClosestRemoved(epoch) ?? (randomizing ? this.getRandomRemoved() : this.firstRemoved);
 		assert(leafRemoved !== null);
 		const pluginDecompose = {
 			align(nodeNew, node) {

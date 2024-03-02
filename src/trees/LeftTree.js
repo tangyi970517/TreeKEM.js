@@ -6,6 +6,8 @@ const LeftTreeEnums = {
 	position: [
 		'greedy',
 		'random',
+		'random+append',
+		'leftmost',
 		'append',
 	],
 	truncate: [
@@ -181,8 +183,18 @@ class LeftTree extends BaseTree {
 				}
 			} break;
 			case 'random': {
+				if (this.sizeLeafRemoved > 0) {
+					return super.add(epoch, leaf, null);
+				}
+			} break;
+			case 'random+append': {
 				if (this.sizeLeafRemoved > 0 && randint(this.sizeLeafRemoved+1) > 0) { // +1 for the chance to append
 					return super.add(epoch, leaf, null);
+				}
+			} break;
+			case 'leftmost': {
+				if (this.sizeLeafRemoved > 0) {
+					return super.add(epoch, leaf, null, false);
 				}
 			} break;
 		}
