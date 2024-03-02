@@ -148,6 +148,8 @@ const makeTreeKEM = (
 	RegionTypeEnc = PathRegion, RegionTypeDec = PathRegion,
 ) => {
 	return (
+		///
+///
 class TreeKEM {
 	constructor() {
 		this.secret = null;
@@ -307,9 +309,13 @@ class TreeKEM {
 		assert(this.users.has(a));
 		const ua = this.users.get(a);
 
-		for (const _ of function * () {
+		///
+for (const _ of function * () {
+		///
 		yield * this.skeletonGen(ua, this.tree, this.epochCommitted, this.epoch, this.skeletonProposal);
-		}.bind(this)()) ;
+		///
+}.bind(this)()) ;
+		///
 
 		this.epochCommitted = this.epoch;
 	}
@@ -425,6 +431,8 @@ class TreeKEM {
 		}
 	}
 }
+///
+		///
 	);
 };
 

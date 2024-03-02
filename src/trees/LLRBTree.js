@@ -72,8 +72,8 @@ const makeLLRBTree = (mode = 'normal', position = 'greedy', removeStrategy = 'hi
 	assert(LLRBTreeEnums.remove.includes(removeStrategy));
 	const m = mode === '2-3' ? 3 : 4;
 	const removeStrategyNonlazy = {'lazy': 'hint-merge-borrow'}[removeStrategy] ?? removeStrategy;
-	//
-//
+	///
+///
 class BTree extends makeBTree(m, position, removeStrategyNonlazy, BTreePluginLLRB) {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
@@ -82,11 +82,13 @@ class BTree extends makeBTree(m, position, removeStrategyNonlazy, BTreePluginLLR
 		this.RR = null;
 	}
 }
-//
-	//
+///
+	///
 	const isLazy = removeStrategy === 'lazy';
 	const BaseTree = isLazy ? BinarySparseTree : BinaryTree;
 	return (
+		///
+///
 class LLRBTree extends BaseTree {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
@@ -223,6 +225,8 @@ class LLRBTree extends BaseTree {
 		super.clearTill(epochNew, rootNew);
 	}
 }
+///
+		///
 	);
 };
 

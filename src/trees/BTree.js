@@ -28,6 +28,8 @@ const makeBTree = (m = 3, position = 'greedy', removeStrategy = 'hint-merge-borr
 	const isLazy = removeStrategy === 'lazy';
 	const BaseTree = isLazy ? SparseTree : Tree;
 	return (
+		///
+///
 class BTree extends BaseTree {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
@@ -237,6 +239,8 @@ class BTree extends BaseTree {
 		return leaf.removeSelf(epoch, hint);
 	}
 }
+///
+		///
 	);
 };
 

@@ -1,6 +1,8 @@
 export
 const makeDepthRegion = (DepthMax = 0) => {
 	return (
+		///
+///
 class DepthRegion {
 	constructor() {
 		this.depths = new WeakMap();
@@ -27,6 +29,8 @@ class DepthRegion {
 		return false;
 	}
 }
+///
+		///
 	);
 };
 

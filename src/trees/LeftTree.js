@@ -24,6 +24,8 @@ const makeLeftTree = (position = 'greedy', truncate = 'truncate') => {
 	const isLazy = truncate !== 'balance';
 	const BaseTree = isLazy ? BinarySparseTree : BinaryTree;
 	return (
+		///
+///
 class LeftTree extends BaseTree {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
@@ -226,6 +228,8 @@ class LeftTree extends BaseTree {
 		}
 	}
 }
+///
+		///
 	);
 };
 

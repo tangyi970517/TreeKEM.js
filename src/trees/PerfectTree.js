@@ -13,6 +13,8 @@ const makePerfectTree = (position = 'greedy', truncate = 'truncate') => {
 	assert(LeftTreeEnums.truncate.includes(truncate));
 	const LeftTree = makeLeftTree(position, truncate);
 	return (
+		///
+///
 class PerfectTree extends LeftTree {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
@@ -66,6 +68,8 @@ class PerfectTree extends LeftTree {
 		return this.rawL.truncate(epoch);
 	}
 }
+///
+		///
 	);
 };
 

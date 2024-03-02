@@ -17,9 +17,9 @@ class ChildTree {
 	}
 
 	* getLeaves() {
-		//
+		///
 yield * function * getLeaves(node) {
-		//
+		///
 		if (node.isLeaf) {
 			yield node;
 			return;
@@ -27,9 +27,9 @@ yield * function * getLeaves(node) {
 		for (const child of node.children) {
 			yield * getLeaves(child);
 		}
-		//
+		///
 }(this);
-		//
+		///
 	}
 	getRandomLeaf() {
 		if (this.isLeaf) {
