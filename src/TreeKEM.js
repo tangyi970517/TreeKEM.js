@@ -143,6 +143,7 @@ const makeTreeKEM = (
 		usingUnmergedNodes = true,
 		usingUnmergedNodesForBlank = usingUnmergedNodes,
 		usingUnmergedNodesForSecret = usingUnmergedNodes,
+		usingSKE = false,
 	} = {},
 	TreeType = LeftTree,
 	RegionTypeEnc = PathRegion, RegionTypeDec = PathRegion,
@@ -365,10 +366,15 @@ for (const _ of function * () {
 				assert(!childTrace || usingUnmergedNodesForSecret);
 				seed = this.crypto.random();
 			}
-			const [seedNext, secret, secretSKE] = this.crypto.PRG(seed, 3);
+			let seedNext, secret, secretSKE;
+			if (usingSKE) {
+				[seedNext, secret, secretSKE] = this.crypto.PRG(seed, 3);
+				node.data.kk = this.crypto.SKE_Gen(secretSKE);
+			} else {
+				[seedNext, secret] = this.crypto.PRG(seed, 2);
+			}
 			seedMap.set(node, seedNext);
 			[node.data.pk, node.data.sk] = this.crypto.PKE_Gen(secret);
-			node.data.kk = this.crypto.SKE_Gen(secretSKE);
 			if (!path.has(node)) {
 				taintNode(this.taint, leaf, node);
 			}
@@ -411,7 +417,7 @@ for (const _ of function * () {
 		}
 		assert(!root.isLeaf || root.data.pk);
 		assert(!root.isLeaf || !root.data.kk);
-		assert(root.isLeaf || (!root.data.pk) === (!root.data.kk));
+		assert(!usingSKE || root.isLeaf || (!root.data.pk) === (!root.data.kk));
 		if (root.data.pk) {
 			if (root.data.kk && (path.has(root) || root.data.taintBy?.has(leaf))) {
 				yield this.crypto.SKE_Enc(root.data.kk, seed);
