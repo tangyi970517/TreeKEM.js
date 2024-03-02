@@ -6,6 +6,7 @@ const BTreeEnums = {
 	position: [
 		'greedy',
 		'random',
+		'sparsest',
 	],
 	remove: [
 		'hint-merge-borrow',
@@ -40,6 +41,19 @@ class BTree extends BaseTree {
 					assert(child.children.length >= min);
 				}
 			}
+		}
+
+		if (this.isLeaf) {
+			this.sparsest = this;
+		} else {
+			let sparsity = Infinity, childSparsest = null;
+			for (const child of this.children) {
+				if (child.sizeLeaf < sparsity) {
+					sparsity = child.sizeLeaf;
+					childSparsest = child;
+				}
+			}
+			this.sparsest = childSparsest.sparsest;
 		}
 	}
 
@@ -206,6 +220,9 @@ class BTree extends BaseTree {
 			} break;
 			case 'random': {
 				sibling = this.getRandomLeaf();
+			} break;
+			case 'sparsest': {
+				sibling = this.sparsest;
 			} break;
 		}
 		return sibling.addSibling(epoch, leaf);
