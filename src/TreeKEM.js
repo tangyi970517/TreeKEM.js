@@ -215,9 +215,38 @@ const makeTreeKEM = (
 		usingUnmergedNodesForSecret = usingUnmergedNodes,
 		usingSKE = false,
 	} = {},
-	TreeType = LeftTree,
+	RawTreeType = LeftTree,
 	RegionTypeEnc = PathRegion, RegionTypeDec = PathRegion,
 ) => {
+	///
+///
+class TreeType extends RawTreeType {
+	constructor(...args) {
+		super(...args);
+
+		this.data = {
+			pk: null,
+			sk: null,
+			kk: null,
+
+			unmerged: null,
+			recomposed: false,
+
+			sizeBlank: 0,
+		};
+	}
+
+	get info() {
+		return [
+			this.data.pk ? '●' : '○',
+			this.data.unmerged ? `‣${this.data.unmerged.length}` : '',
+			'id' in this.data ? {id: this.data.id} : '',
+			...super.info.filter(x => x !== this.data),
+		];
+	}
+}
+///
+	///
 	return (
 		///
 ///
@@ -264,8 +293,6 @@ class TreeKEM {
 		leaf.data.id = id;
 		leaf.data.pk = pk;
 		leaf.data.sk = sk;
-		leaf.data.kk = null;
-		leaf.data.sizeBlank = 0;
 	}
 
 	add(a, b, clearingOldNodes = true) {
@@ -399,7 +426,7 @@ for (const _ of function * () {
 		for (const [node, isInRegion, childTrace] of skeletonIter(root, epochOld, epoch, skeletonExtra, path, regionPredicate, traceOverwrite)) {
 			assert(!node.isLeaf);
 			assert(childTrace === null || node.children.indexOf(childTrace) >= 0);
-			node.data.sizeBlank = sum(node.children.map(child => child.data.sizeBlank ?? 0), Number(!isInRegion));
+			node.data.sizeBlank = sum(node.children.map(child => child.data.sizeBlank), Number(!isInRegion));
 			node.data.pk = null;
 			node.data.sk = null;
 			node.data.kk = null;

@@ -182,7 +182,11 @@ class Tree extends ChildTree {
 	}
 
 	get info() {
-		return [this.epoch, this.data, this.debug];
+		return [
+			this.isComponent ? '※' : '',
+			this.decompose ? `⋯${this.decompose.length}` : '',
+			`@${this.epoch}`, this.data, `#${this.debug}`,
+		];
 	}
 	print(posList = [], Split = 0.5, Width = 2) {
 		/**
@@ -216,7 +220,7 @@ class Tree extends ChildTree {
 			...posListPrev.map(pos => ' │ '[pos] + Array(Width-1).fill(' ').join('')),
 			...posSelf.map(pos => '┌├└'[pos] + Array(Width-1).fill('─').join('')),
 			'╼┶┮┾'[spread],
-		].join(''), ...this.info);
+		].join(''), ...this.info.filter(s => (s ?? '') !== ''));
 		for (const [i, child] of this.children.slice(mid).entries()) {
 			child.print(posListPrev.concat(
 				posSelf.map(pos => pos === 0 ? 1 : pos),
