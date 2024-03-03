@@ -285,9 +285,7 @@ class TreeKEM {
 
 		this.commit(a);
 
-		const cryptoOld = this.crypto;
-		this.crypto = new Crypto();
-		return cryptoOld;
+		return this._reset();
 	}
 	static initData(leaf, id, pk, sk = null) {
 		leaf.data.id = id;
@@ -527,6 +525,29 @@ for (const _ of function * () {
 			}
 		}
 	}
+
+	_fill(node = this.tree) {
+		if (node.isLeaf) {
+			return;
+		}
+		[node.data.pk, node.data.sk] = this.cryptoUser.PKE_Gen(this.cryptoUser.random());
+		if (usingSKE) {
+			node.data.kk = this.cryptoUser.SKE_Gen(this.cryptoUser.random());
+		}
+		node.data.sizeBlank = 0;
+		this.taint.rinseNode(node);
+		for (const child of node.children) {
+			this._fill(child);
+		}
+	}
+
+	_reset() {
+		const cryptoOld = this.crypto;
+		this.crypto = new Crypto();
+		return cryptoOld;
+	}
+
+	_noop() {}
 }
 ///
 		///

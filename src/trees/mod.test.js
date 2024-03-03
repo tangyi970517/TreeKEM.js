@@ -8,13 +8,14 @@ const testTree = (TreeType, n, T, isFast = true, verbose = 0) => {
 		leaf.data.name = ['init', leaves.length];
 		leaves.push(leaf);
 	}
-	if (verbose >= 3) tree.print();
-	if (verbose >= 3) tree.B?.print();
+	if (verbose >= 3) tree.print(), tree.B?.print();
 	const count = [0, 0];
 	for (const t of range(T)) {
+		///
+do {
+		///
 		const treeOld = tree;
 		const op = randint(2);
-		++count[op];
 		switch (op) {
 			case 0: {
 				++epoch;
@@ -22,33 +23,34 @@ const testTree = (TreeType, n, T, isFast = true, verbose = 0) => {
 				leafNew.data.name = [t, -1];
 				const leafHint = leaves[randint(leaves.length)];
 				leaves.push(leafNew);
-				if (verbose >= 1) console.log('add', leafNew.info, 'by', leafHint.info, 'at', t, '@', epoch);
+				if (verbose >= 2) console.log('add', leafNew.info, 'by', leafHint.info, 'at', t, '@', epoch);
 				tree = tree.add(epoch, leafNew, leafHint);
 				treeOld.clearTill(epoch, tree);
-				if (verbose >= 3) tree.print();
-				if (verbose >= 3) tree.B?.print();
+				if (verbose >= 3) tree.print(), tree.B?.print();
 				assert(tree.getTrace() === leafNew, tree.info, tree.getTrace()?.info, leafNew.info);
 				assert(tree.epoch === epoch, tree.info, tree.epoch, epoch);
 			} break;
 			case 1: {
 				if (leaves.length < 2) {
-					--count[op];
 					continue;
 				}
 				++epoch;
-				const leafOld = leaves.splice(randint(leaves.length), 1)[0];
+				const [leafOld] = leaves.splice(randint(leaves.length), 1);
 				const leafHint = leaves[randint(leaves.length)];
-				if (verbose >= 1) console.log('remove', leafOld.info, 'by', leafHint.info, 'at', t, '@', epoch);
+				if (verbose >= 2) console.log('remove', leafOld.info, 'by', leafHint.info, 'at', t, '@', epoch);
 				tree = tree.remove(epoch, leafOld, leafHint);
 				treeOld.clearTill(epoch, tree);
-				if (verbose >= 3) tree.print();
-				if (verbose >= 3) tree.B?.print();
+				if (verbose >= 3) tree.print(), tree.B?.print();
 				assert(tree.epoch <= epoch, tree.info, tree.epoch, epoch);
 			} break;
 		}
 		if (!isFast) for (const leaf of leaves) {
 			assert(leaf.getRoot(epoch, true) === tree, leaf.info, leaf.getRoot(epoch, true).info, tree.info);
 		}
+		++count[op];
+		///
+} while (false) ;
+		///
 	}
 	const [nAdd, nRem] = count;
 	if (verbose >= 1) console.log('add count', nAdd, '/', T);
@@ -63,8 +65,7 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
 		leaf.data.name = ['init', leaves.length];
 		leaves.push(leaf);
 	}
-	if (verbose >= 3) tree.print();
-	if (verbose >= 3) tree.B?.print();
+	if (verbose >= 3) tree.print(), tree.B?.print();
 	const count = [0, 0];
 	for (const t of range(T)) {
 		const nAdd = randint(n - leaves.length + 1);
@@ -80,8 +81,7 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
 			const treeOld = tree;
 			tree = tree.add(epoch, leafNew, leafHint);
 			treeOld.clearTill(epoch, tree);
-			if (verbose >= 3) tree.print();
-			if (verbose >= 3) tree.B?.print();
+			if (verbose >= 3) tree.print(), tree.B?.print();
 			assert(tree.getTrace() === leafNew, tree.info, tree.getTrace()?.info, leafNew.info);
 			assert(tree.epoch === epoch, tree.info, tree.epoch, epoch);
 			if (!isFast) for (const leaf of leaves) {
@@ -93,14 +93,13 @@ const testTreeBounce = (TreeType, n, T, isFast = true, verbose = 0) => {
 		if (verbose >= 1) console.log('remove count', nRem, 'from', leaves.length, 'at', t);
 		for (const i of range(nRem)) {
 			++epoch;
-			const leafOld = leaves.splice(randint(leaves.length), 1)[0];
+			const [leafOld] = leaves.splice(randint(leaves.length), 1);
 			const leafHint = leaves[randint(leaves.length)];
 			if (verbose >= 2) console.log('remove', leafOld.info, 'by', leafHint.info, 'at', t, ':', i, '@', epoch);
 			const treeOld = tree;
 			tree = tree.remove(epoch, leafOld, leafHint);
 			treeOld.clearTill(epoch, tree);
-			if (verbose >= 3) tree.print();
-			if (verbose >= 3) tree.B?.print();
+			if (verbose >= 3) tree.print(), tree.B?.print();
 			assert(tree.epoch <= epoch, tree.info, tree.epoch, epoch);
 			if (!isFast) for (const leaf of leaves) {
 				assert(leaf.getRoot(epoch, true) === tree, leaf.info, leaf.getRoot(epoch, true).info, tree.info);

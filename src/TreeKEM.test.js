@@ -10,36 +10,38 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 	if (verbose >= 3) TreeKEM.tree.print();
 	const count = [0, 0, 0, 0];
 	for (const t of range(T)) {
+		///
+do {
+		///
 		const op = randint(3);
-		++count[op];
 		switch (op) {
 			case 0: {
 				const userNew = ++userLast;
 				const user = users[randint(users.length)];
 				users.push(userNew);
-				if (verbose >= 1) console.log('add', userNew, 'by', user, 'at', t);
+				if (verbose >= 2) console.log('add', userNew, 'by', user, 'at', t);
 				TreeKEM.add(user, userNew);
 				if (verbose >= 3) TreeKEM.tree.print();
 			} break;
 			case 1: {
 				if (users.length < 2) {
-					--count[op];
 					continue;
 				}
-				const userOld = users.splice(randint(users.length), 1)[0];
+				const [userOld] = users.splice(randint(users.length), 1);
 				const user = users[randint(users.length)];
-				if (verbose >= 1) console.log('remove', userOld, 'by', user, 'at', t);
+				if (verbose >= 2) console.log('remove', userOld, 'by', user, 'at', t);
 				TreeKEM.remove(user, userOld);
 				if (verbose >= 3) TreeKEM.tree.print();
 			} break;
 			case 2: {
 				const userCom = users[randint(users.length)];
 				const user = users[randint(users.length)];
-				if (verbose >= 1) console.log('update', userCom, 'by', user, 'at', t);
+				if (verbose >= 2) console.log('update', userCom, 'by', user, 'at', t);
 				TreeKEM.update(userCom, user);
 				if (verbose >= 3) TreeKEM.tree.print();
 			} break;
 		}
+		++count[op];
 		if (Math.random() < 1/3 || t === T-1) {
 			const user = users[randint(users.length)];
 			if (verbose >= 2) console.log('commit', 'by', user, 'at', t);
@@ -47,6 +49,9 @@ const testTreeKEM = (TreeKEMType, n, T, verbose = 0) => {
 			if (verbose >= 3) TreeKEM.tree.print();
 			++count[3];
 		}
+		///
+} while (false) ;
+		///
 	}
 	const [nAdd, nRem, nUpd, nCommit] = count;
 	if (verbose >= 1) console.log('add count', nAdd, '/', T);

@@ -64,3 +64,14 @@ const randomChoice = (list, weightFuncKey = null, weightSumHint = null) => {
 	}
 	assert(false, 'choice out of range');
 };
+
+export
+const shuffle = (list, k = list.length) => {
+	for (const j of range(Math.min(k, list.length-1))) {
+		const i = randint(j, list.length);
+		if (i === j) {
+			continue;
+		}
+		[list[i], list[j]] = [list[j], list[i]];
+	}
+};
