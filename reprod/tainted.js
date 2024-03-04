@@ -35,6 +35,7 @@ const run = function * (scope, seq, ...args) {
 	}
 };
 
+const SCALE = 15;
 const REPEAT = 8; // unspecified in paper
 
 const runAdmin = function * (Task, scale) {
@@ -99,7 +100,7 @@ if (import.meta.main) {
 
 	if (Task === 'admin') {
 		dataset = function * () {
-			for (const scale of range(3, 15+1)) {
+			for (const scale of range(3, SCALE+1)) {
 				yield * runAdmin(Task, scale);
 			}
 		}();
@@ -108,7 +109,7 @@ if (import.meta.main) {
 	if (Task === 'dist') {
 		dataset = function * () {
 			for (const distUserUpd of ['uniform', 'Zipf']) {
-				for (const scale of range(3, 15+1)) {
+				for (const scale of range(3, SCALE+1)) {
 					yield * runNonAdmin(Task, distUserUpd, scale);
 				}
 			}

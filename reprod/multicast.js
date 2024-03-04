@@ -3,9 +3,9 @@ import {assert, range, shuffle} from '../src/utils.js';
 import {makeLeftTree} from '../src/trees/LeftTree.js';
 const LeftTree = makeLeftTree('leftmost');
 import {make23Tree} from '../src/trees/BTree.js';
-const $23Tree = make23Tree('sparsest', 'borrow-merge');
+const $23Tree = make23Tree('optimal', 'borrow-merge');
 import {makeLLRBTree} from '../src/trees/LLRBTree.js';
-const LLRBTree = makeLLRBTree('normal', 'sparsest', 'borrow-merge');
+const LLRBTree = makeLLRBTree('normal', 'optimal', 'borrow-merge');
 const TreeTypes = [
 	['LBBTs', LeftTree],
 	['2-3 Trees', $23Tree],
@@ -34,6 +34,7 @@ const run = function * (scope, seq) {
 	}
 };
 
+const SCALE = 14;
 const REPEAT = 8;
 
 const runTask = function * (Task, scale, {
@@ -93,7 +94,7 @@ if (import.meta.main) {
 
 	if (Task === 'size') {
 		dataset = function * () {
-			for (const scale of range(3, 14+1)) {
+			for (const scale of range(3, SCALE+1)) {
 				yield * runTask(Task, scale);
 				yield * runTask(Task, scale, {setting: 'remove 99%', gen: genRemove99});
 			}
@@ -102,7 +103,7 @@ if (import.meta.main) {
 
 	if (Task === 'prob') {
 		dataset = function * () {
-			const scale = 14;
+			const scale = SCALE;
 			for (const i of range(5)) {
 				const pRem = 0.1 + (i+1) * 0.005;
 				yield * runTask(Task, scale, {pRem});

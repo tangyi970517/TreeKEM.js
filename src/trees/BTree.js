@@ -1,4 +1,4 @@
-import {assert, range, replace} from '../utils.js';
+import {assert, range, argmin, replace} from '../utils.js';
 import Tree, {SparseTree} from './baseTree.js';
 
 export
@@ -6,7 +6,7 @@ const BTreeEnums = {
 	position: [
 		'greedy',
 		'random',
-		'sparsest',
+		'optimal',
 	],
 	remove: [
 		'hint-merge-borrow',
@@ -23,6 +23,7 @@ const makeBTree = (m = 3, position = 'greedy', removeStrategy = 'hint-merge-borr
 	assert(BTreeEnums.position.includes(position));
 	assert(BTreeEnums.remove.includes(removeStrategy));
 	const max = m, min = Math.ceil(m / 2);
+	const usingOptimal = position === 'optimal';
 	const isHintFirst = removeStrategy.startsWith('hint-');
 	const isMergeFirst = removeStrategy.endsWith('-borrow');
 	const isLazy = removeStrategy === 'lazy';
@@ -45,17 +46,17 @@ class BTree extends BaseTree {
 			}
 		}
 
+		if (!usingOptimal) {
+			return;
+		}
 		if (this.isLeaf) {
-			this.sparsest = this;
+			this.heightMax = 0;
+			this.firstOptimal = this;
 		} else {
-			let sparsity = Infinity, childSparsest = null;
-			for (const child of this.children) {
-				if (child.sizeLeaf < sparsity) {
-					sparsity = child.sizeLeaf;
-					childSparsest = child;
-				}
-			}
-			this.sparsest = childSparsest.sparsest;
+			const childOptimal = argmin(children, child => child.heightMax);
+			const isMax = childOptimal.heightMax === childOptimal.height && children.length === max;
+			this.heightMax = isMax ? this.height : childOptimal.heightMax;
+			this.firstOptimal = childOptimal.firstOptimal;
 		}
 	}
 
@@ -223,8 +224,8 @@ class BTree extends BaseTree {
 			case 'random': {
 				sibling = this.getRandomLeaf();
 			} break;
-			case 'sparsest': {
-				sibling = this.sparsest;
+			case 'optimal': {
+				sibling = this.firstOptimal;
 			} break;
 		}
 		return sibling.addSibling(epoch, leaf);

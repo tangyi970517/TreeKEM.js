@@ -34,6 +34,31 @@ export
 const coalesce = (list, init = null) => list.reduce((o, a) => o ?? a, init);
 
 export
+const argmin = (list, valueFunc = x => x) => {
+	let opt = Infinity, arg = null;
+	for (const x of list) {
+		const y = valueFunc(x);
+		if (y < opt) {
+			opt = y;
+			arg = x;
+		}
+	}
+	return arg;
+};
+export
+const argmax = (list, valueFunc = x => x) => {
+	let opt = -Infinity, arg = null;
+	for (const x of list) {
+		const y = valueFunc(x);
+		if (y > opt) {
+			opt = y;
+			arg = x;
+		}
+	}
+	return arg;
+};
+
+export
 const replace = (list, itemOld, ...itemsNew) => {
 	const i = list.indexOf(itemOld);
 	assert(i >= 0, 'replace not found');
