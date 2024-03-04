@@ -39,3 +39,40 @@ Experiment 2: non-administrative setting
   01. Zipf distribution: user with *ranking* `k` has weight `1/k` to be chosen
       > Guess: users are ranked by a hidden variable, say assigned by `random()`.
 - figures: average number of encryptions per user as function of "tree size" `2^i`, for the 2 distributions
+
+## Multicast
+
+> Bienstock, Dodis, Tang
+> \
+> "Multicast Key Agreement, Revisited"
+> \
+> CT-RSA 2022; [ia.cr/2021/1570](https://eprint.iacr.org/2021/1570)
+
+Common setup:
+- 3 tree types:
+  01. LBBT, add at leftmost "removed" leaf (if any)
+  01. 2-3 tree, add at optimal position, use "borrow first and do not consider hint" borrow-or-merge strategy
+  01. LLRBT, same add position and borrow-or-merge strategy
+- region: Multicast is almost equivalent to using the entire tree as `regionGen` (and still paths as `regionEnc`) along with the SKE optimization
+  > One difference is that we put long-term keys at leaves and (thus) do not have SKE keys at leaves; we can just count the PKE encryptions as extra SKE encryptions.
+- protocol:
+  - turn on SKE optimization, of course
+  - turn off "unmerged nodes" optimization
+- simulation:
+  - same `2^{i-1}` users, `10 * 2^i` operations (for `i = 3, …, 14`), 10% add, 10% remove, 80% update as tainted TreeKEM (if not specified otherwise)
+  - one single fixed administrator/manager
+    > We are putting the manager as a user in the group, but this difference should be negligible.
+  - all operations (even update) are issued by the manager
+  - choose a random user to remove/update
+  - (always commit immediately after each operation, by the manager)
+
+Experiment 1: scalability
+- 2 settings:
+  01. normal
+  01. remove 99% users at the beginning (costs not accounted) and then proceed normally
+- figures: average number of encryptions per operation as function of "tree size" `2^i`, for the 2 settings
+
+Experiment 2: effect of remove operation probability
+- fix `i = 14`
+- increase remove operation probability to 10.5%, 11%, 11.5%, 12%, 12.5% (and decrease add probability accordingly, so that we always have 80% update)
+- figure: average number of encryptions per operation as function of the probability

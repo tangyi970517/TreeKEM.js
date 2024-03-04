@@ -70,4 +70,11 @@ if __name__ == '__main__':
 			plt.figure(figsize = (4.8 * 2, 3.6), layout = 'tight')
 			plot(data, 'size', 'value', ['type'], ['distUserUpd'], xScale = 'log')
 
+		case 'multicast-size':
+			plt.figure(figsize = (4.8 * 2, 3.6), layout = 'tight')
+			plot(data, 'size', 'value', ['type'], ['setting'], xScale = 'log')
+		case 'multicast-prob':
+			plt.figure(layout = 'tight')
+			plot(data, 'pRem', 'value', ['type'])
+
 	plt.show()

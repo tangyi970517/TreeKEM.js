@@ -177,7 +177,7 @@ do {
 				yield [op, user, userNew];
 			} break;
 			case 'remove': {
-				if (users.length < 2) {
+				if (users.length < (usingRemByAdmin && admins ? 1 : 2)) {
 					continue;
 				}
 				const [userOld] = users.splice(randint(users.length), 1);
@@ -187,6 +187,9 @@ do {
 			} break;
 			case 'update': {
 				const updatees = allowingUpdOfAdmin ? (admins ?? []).concat(users) : users;
+				if (updatees.length < 1) {
+					continue;
+				}
 				const userCom = randomUnder(updatees, distUserUpd, ...distUserUpdArgs);
 				if (allowingUpdByOther) {
 					const updaters = usingUpdByAdmin ? admins ?? users : users;

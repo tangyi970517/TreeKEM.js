@@ -74,4 +74,5 @@ const shuffle = (list, k = list.length) => {
 		}
 		[list[i], list[j]] = [list[j], list[i]];
 	}
+	return list;
 };
