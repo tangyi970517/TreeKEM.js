@@ -212,14 +212,23 @@ do {
 	}
 
 	const nTotal = userLast+1;
-	yield ['_noop', {nAdmin, nTotal, tTotal}];
+	yield ['_noop', {nAdmin, admins, nTotal, tTotal}];
 };
 
 export
-const testOpSeq = (TreeKEMType, seq) => {
+const testOpSeq = (TreeKEMType, seq, usersMarked = new Set()) => {
 	const KEM = new TreeKEMType();
+	let Enc = 0, SEnc = 0;
+	let EncMark = 0, SEncMark = 0;
 	for (const [op, ...args] of seq) {
 		KEM[op](...args);
+		if (usersMarked.has(args[0])) {
+			EncMark += KEM.crypto.stat.Enc - Enc;
+			SEncMark += KEM.crypto.stat.SEnc - SEnc;
+		}
+		Enc = KEM.crypto.stat.Enc;
+		SEnc = KEM.crypto.stat.SEnc;
 	}
-	return KEM.crypto.stat;
+	const stat = {...KEM.crypto.stat, EncMark, SEncMark};
+	return stat;
 };
