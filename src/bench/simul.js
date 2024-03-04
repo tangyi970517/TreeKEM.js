@@ -124,6 +124,7 @@ const genOpSeq = function * (n, T, [pAdd, pRem, pUpd = 1 - pAdd - pRem], {
 
 	allowingUpdByOther = false,
 	usingUpdByAdmin = allowingUpdByOther && usingAdmin,
+	allowingUpdOfAdmin = true,
 	distUserUpd = 'uniform',
 	distUserUpdArgs = [],
 
@@ -185,7 +186,8 @@ do {
 				yield [op, user, userOld];
 			} break;
 			case 'update': {
-				const userCom = randomUnder(users, distUserUpd, ...distUserUpdArgs);
+				const updatees = allowingUpdOfAdmin ? (admins ?? []).concat(users) : users;
+				const userCom = randomUnder(updatees, distUserUpd, ...distUserUpdArgs);
 				if (allowingUpdByOther) {
 					const updaters = usingUpdByAdmin ? admins ?? users : users;
 					user = updaters[randint(updaters.length)];
