@@ -176,10 +176,13 @@ class LLRBTree extends BaseTree {
 		}
 		nodeRB.B = node;
 		if (node.decompose) {
-			nodeRB.decompose = node.decompose.map(node => node.RB);
-			assert(nodeRB.decompose.every(Boolean));
 			assert(node.decompose[0].isComponent);
-			nodeRB.decompose[0].isComponent = true;
+			const decompose = node.decompose.map(node => node.RB);
+			assert(decompose.every(Boolean));
+			if (!nodeRB.children.includes(decompose[0])) {
+				decompose[0].isComponent = true;
+				nodeRB.decompose = decompose;
+			}
 		}
 		return (node.RB = nodeRB);
 	}
