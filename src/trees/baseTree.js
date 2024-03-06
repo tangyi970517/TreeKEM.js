@@ -167,6 +167,10 @@ class Tree extends ChildTree {
 		assert(false, 'abstract remove method');
 	}
 
+	update(_epoch, _node, _hint = null) {
+		return this;
+	}
+
 	clearTill(epochNew, rootNew) {
 		this.clearWhen(node => node.getRoot(epochNew, true) !== rootNew);
 	}

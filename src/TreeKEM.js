@@ -352,10 +352,12 @@ class TreeKEM {
 		return clearingOldNodes ? null : treeOld;
 	}
 
-	update(b, a = b) {
-		assert(this.users.has(b));
+	update(b, a = b, clearingOldNodes = true) {
+		assert(this.users.has(a) && this.users.has(b));
 		++this.epoch;
-		const ub = this.users.get(b);
+		const ua = this.users.get(a), ub = this.users.get(b);
+		const treeOld = this.tree;
+		this.tree = this.tree.update(this.epoch, ub, ua);
 
 		const skeletonExtra = new Set(ub.getPath(this.epoch));
 		for (const node of this.taint.getTaint(ub)) {
@@ -370,6 +372,16 @@ class TreeKEM {
 		if (!usingProposal) {
 			this.commit(a);
 		}
+
+		if (this.tree === treeOld) {
+			return null;
+		}
+		this.taint.rinseTill(treeOld, this.epoch, this.tree);
+		if (clearingOldNodes) {
+			treeOld.clearTill(this.epoch, this.tree);
+		}
+
+		return clearingOldNodes ? null : treeOld;
 	}
 
 	insertSkeleton(skeleton, filtering = true) {
