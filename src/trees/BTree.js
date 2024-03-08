@@ -60,13 +60,10 @@ class BTree extends BaseTree {
 		}
 	}
 
-	static init(n, epoch = 0) {
+	static init(n, epoch = new this.Epoch()) {
 		assert(Number.isInteger(n) && n > 0);
-		if (n === 1) {
-			return new this(epoch);
-		}
 		const h = Math.ceil(Math.log(n) / Math.log(max));
-		return this.initGivenHeight(epoch, n, h, false);
+		return [epoch, this.initGivenHeight(epoch, n, h, false)];
 	}
 	static initGivenHeight(epoch, n, h, forcingMin = true) {
 		if (n === 1) {
@@ -133,7 +130,8 @@ class BTree extends BaseTree {
 		if (grandparent === null && siblings.length === 1) {
 			const sibling = siblings[0];
 			assert(nodeReplace === null || sibling === nodeReplace);
-			if (sibling.epoch < epoch) {
+			if (sibling.epoch !== epoch) {
+				assert(this.Epoch.lt(sibling.epoch, epoch));
 				sibling.setParent(epoch, null);
 			}
 			return sibling;
@@ -228,7 +226,7 @@ class BTree extends BaseTree {
 				sibling = this.firstOptimal;
 			} break;
 		}
-		return sibling.addSibling(epoch, leaf);
+		return [epoch, sibling.addSibling(epoch, leaf)];
 	}
 
 	remove(epoch, leaf, hint = null) {
@@ -237,7 +235,7 @@ class BTree extends BaseTree {
 		if (isLazy) {
 			return super.remove(epoch, leaf);
 		}
-		return leaf.removeSelf(epoch, hint);
+		return [epoch, leaf.removeSelf(epoch, hint)];
 	}
 }
 ///

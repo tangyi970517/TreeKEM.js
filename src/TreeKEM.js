@@ -1,6 +1,41 @@
 import {assert, sum} from './utils.js';
 
-const isSkeleton = (node, epochOld, skeletonExtra) => !node.isAllRemoved && (node.epoch > epochOld || skeletonExtra.has(node));
+class TreeState {
+	constructor(epochInit, TreeType) {
+		this.epoch = epochInit;
+		this.root = Object.create(TreeType.prototype); // fake tree object
+	}
+
+	init(n) {
+		const {epoch, root} = this;
+		const epochNew = epoch.step();
+		[this.epoch, this.root] = root.constructor.init(n, epochNew);
+		assert(root.Epoch.ge(this.epoch, epochNew));
+		return [epoch, root];
+	}
+	add(hint) {
+		const {epoch, root} = this;
+		const epochNew = epoch.step();
+		const leafNew = new root.constructor(epochNew);
+		[this.epoch, this.root] = root.add(epochNew, leafNew, hint);
+		assert(root.Epoch.ge(this.epoch, epochNew));
+		return [epoch, root, leafNew];
+	}
+	remove(node, hint) {
+		const {epoch, root} = this;
+		const epochNew = epoch.step();
+		[this.epoch, this.root] = root.remove(epochNew, node, hint);
+		assert(root.Epoch.ge(this.epoch, epochNew));
+		return [epoch, root];
+	}
+	update(node, hint) {
+		const {epoch, root} = this;
+		const epochNew = epoch.step();
+		[this.epoch, this.root] = root.update(epochNew, node, hint);
+		assert(root.Epoch.ge(this.epoch, epochNew));
+		return [epoch, root];
+	}
+}
 
 const recompose = node => {
 	assert(!node.isLeaf);
@@ -144,6 +179,8 @@ class TaintManager {
 	}
 }
 
+const isSkeleton = (node, epochOld, skeletonExtra) => !node.isAllRemoved && (node.Epoch.lt(epochOld, node.epoch) || skeletonExtra.has(node));
+
 const skeletonIter = function * (root, epochOld, epoch, skeletonExtra, path, regionPredicate, trace = new Map()) {
 	assert(isSkeleton(root, epochOld, skeletonExtra));
 	skeletonExtra.delete(root);
@@ -254,8 +291,9 @@ class TreeKEM {
 	constructor() {
 		this.secret = null;
 
-		this.tree = null;
-		this.epoch = 0;
+		const epochInit = new TreeType.Epoch();
+		this.tree = new TreeState(epochInit, TreeType);
+
 		this.users = new Map();
 
 		this.regionEnc = new RegionTypeEnc();
@@ -263,18 +301,16 @@ class TreeKEM {
 		this.taint = new TaintManager();
 
 		this.skeletonProposal = new Set();
-		this.epochCommitted = 0;
+		this.epochCommitted = epochInit;
 
 		this.crypto = new Crypto();
 		this.cryptoUser = new Crypto();
 	}
 
 	init(ids, a = ids[0]) {
-		++this.epoch;
 		const n = ids.length;
-		assert(this.tree === null);
-		this.tree = TreeType.init(n, this.epoch);
-		for (const leaf of this.tree.getLeaves(true)) {
+		const _ = this.tree.init(n);
+		for (const leaf of this.tree.root.getLeaves(true)) {
 			const i = this.users.size;
 			const id = ids[i];
 			const [pk, sk] = this.cryptoUser.PKE_Gen(this.cryptoUser.random());
@@ -295,14 +331,13 @@ class TreeKEM {
 
 	add(a, b, clearingOldNodes = true) {
 		assert(this.users.has(a) && !this.users.has(b));
-		++this.epoch;
-		const leafNew = new TreeType(this.epoch);
+		const ua = this.users.get(a);
+
+		const [_epochOld, treeOld, leafNew] = this.tree.add(ua);
+
 		const [pk, sk] = this.cryptoUser.PKE_Gen(this.cryptoUser.random());
 		this.constructor.initData(leafNew, b, pk, sk);
 		this.users.set(b, leafNew);
-		const ua = this.users.get(a), ub = this.users.get(b);
-		const treeOld = this.tree;
-		this.tree = this.tree.add(this.epoch, ub, ua);
 
 		const skeletonExtra = new Set();
 
@@ -311,9 +346,9 @@ class TreeKEM {
 			this.commit(a);
 		}
 
-		this.taint.rinseTill(treeOld, this.epoch, this.tree);
+		this.taint.rinseTill(treeOld, this.tree.epoch, this.tree.root);
 		if (clearingOldNodes) {
-			treeOld.clearTill(this.epoch, this.tree);
+			treeOld.clearTill(this.tree.epoch, this.tree.root);
 		}
 
 		return clearingOldNodes ? null : treeOld;
@@ -321,20 +356,20 @@ class TreeKEM {
 
 	remove(a, b, clearingOldNodes = true) {
 		assert(this.users.has(a) && this.users.has(b) && b !== a);
-		++this.epoch;
 		const ua = this.users.get(a), ub = this.users.get(b);
 		this.users.delete(b);
-		const treeOld = this.tree;
-		this.tree = this.tree.remove(this.epoch, ub, ua);
+
+		const [_epochOld, treeOld] = this.tree.remove(ub, ua);
 
 		const skeletonExtra = new Set();
-		const root = this.tree;
-		if (root.epoch < this.epoch) {
+		const {root} = this.tree;
+		if (root.epoch !== this.tree.epoch) {
+			assert(root.Epoch.lt(root.epoch, this.tree.epoch));
 			skeletonExtra.add(root);
 		}
 		for (const node of this.taint.getTaint(ub)) {
-			if (node.getRoot(this.epoch, true) === this.tree) {
-				insertPath(this.epoch, node, skeletonExtra);
+			if (node.getRoot(this.tree.epoch, true) === this.tree.root) {
+				insertPath(this.tree.epoch, node, skeletonExtra);
 			}
 		}
 		this.taint.rinseUser(ub);
@@ -344,9 +379,9 @@ class TreeKEM {
 			this.commit(a);
 		}
 
-		this.taint.rinseTill(treeOld, this.epoch, this.tree);
+		this.taint.rinseTill(treeOld, this.tree.epoch, this.tree.root);
 		if (clearingOldNodes) {
-			treeOld.clearTill(this.epoch, this.tree);
+			treeOld.clearTill(this.tree.epoch, this.tree.root);
 		}
 
 		return clearingOldNodes ? null : treeOld;
@@ -354,15 +389,14 @@ class TreeKEM {
 
 	update(b, a = b, clearingOldNodes = true) {
 		assert(this.users.has(a) && this.users.has(b));
-		++this.epoch;
 		const ua = this.users.get(a), ub = this.users.get(b);
-		const treeOld = this.tree;
-		this.tree = this.tree.update(this.epoch, ub, ua);
 
-		const skeletonExtra = new Set(ub.getPath(this.epoch));
+		const [_epochOld, treeOld] = this.tree.update(ub, ua);
+
+		const skeletonExtra = new Set(ub.getPath(this.tree.epoch));
 		for (const node of this.taint.getTaint(ub)) {
-			if (node.getRoot(this.epoch, true) === this.tree) {
-				insertPath(this.epoch, node, skeletonExtra);
+			if (node.getRoot(this.tree.epoch, true) === this.tree.root) {
+				insertPath(this.tree.epoch, node, skeletonExtra);
 			} else {
 				assert(node.isComponent);
 			}
@@ -373,12 +407,12 @@ class TreeKEM {
 			this.commit(a);
 		}
 
-		if (this.tree === treeOld) {
+		if (this.tree.root === treeOld) {
 			return null;
 		}
-		this.taint.rinseTill(treeOld, this.epoch, this.tree);
+		this.taint.rinseTill(treeOld, this.tree.epoch, this.tree.root);
 		if (clearingOldNodes) {
-			treeOld.clearTill(this.epoch, this.tree);
+			treeOld.clearTill(this.tree.epoch, this.tree.root);
 		}
 
 		return clearingOldNodes ? null : treeOld;
@@ -387,7 +421,7 @@ class TreeKEM {
 	insertSkeleton(skeleton, filtering = true) {
 		if (filtering) {
 			for (const node of this.skeletonProposal) {
-				if (node.getRoot(this.epoch, true) !== this.tree) {
+				if (node.getRoot(this.tree.epoch, true) !== this.tree.root) {
 					this.skeletonProposal.delete(node); // safe to delete while iterating `Set`
 				}
 			}
@@ -402,7 +436,7 @@ class TreeKEM {
 	}
 
 	commit(a) {
-		if (this.epochCommitted === this.epoch) {
+		if (this.epochCommitted === this.tree.epoch) {
 			return;
 		}
 
@@ -412,12 +446,12 @@ class TreeKEM {
 		///
 for (const _ of function * () {
 		///
-		yield * this.skeletonGen(ua, this.tree, this.epochCommitted, this.epoch, this.skeletonProposal);
+		yield * this.skeletonGen(ua, this.tree.root, this.epochCommitted, this.tree.epoch, this.skeletonProposal);
 		///
 }.bind(this)()) ;
 		///
 
-		this.epochCommitted = this.epoch;
+		this.epochCommitted = this.tree.epoch;
 	}
 
 	* skeletonGen(leaf, root, epochOld, epoch, skeletonExtra) {
@@ -538,7 +572,7 @@ for (const _ of function * () {
 		}
 	}
 
-	_fill(node = this.tree) {
+	_fill(node = this.tree.root) {
 		if (node.isLeaf) {
 			return;
 		}

@@ -42,9 +42,9 @@ class LeftTree extends BaseTree {
 		}
 	}
 
-	static init(n, epoch = 0) {
+	static init(n, epoch = new this.Epoch()) {
 		assert(Number.isInteger(n) && n > 0);
-		return this.initLeft(epoch, n);
+		return [epoch, this.initLeft(epoch, n)];
 	}
 	static initLeft(epoch, n) {
 		if (n === 1) {
@@ -200,30 +200,33 @@ class LeftTree extends BaseTree {
 				}
 			} break;
 		}
-		return this.append(epoch, leaf);
+		return [epoch, this.append(epoch, leaf)];
 	}
 
 	remove(epoch, leaf, _hint) {
 		assert(leaf.isLeaf && leaf.getRoot(epoch) === this);
 		switch (truncate) {
 			case 'balance': {
-				return this.pop(epoch, leaf);
+				return [epoch, this.pop(epoch, leaf)];
 			} break;
 			case 'truncate': {
-				const rootNew = super.remove(epoch, leaf);
-				const rootTruncate = rootNew.truncate(epoch);
-				assert(rootTruncate !== null, 'attempting to remove the last node');
-				if (rootTruncate.epoch < epoch) {
-					rootTruncate.setParent(epoch, null);
+				const [epochNew, rootNew] = super.remove(epoch, leaf);
+				const epochNext = epochNew.step();
+				const rootTruncate = rootNew.truncate(epochNext);
+				if (rootTruncate === null) {
+					assert(false, 'attempting to remove the last node');
+				}
+				if (rootTruncate.epoch !== epochNext) {
+					assert(this.Epoch.lt(rootTruncate.epoch, epochNext));
+					rootTruncate.setParent(epochNext, null);
 				}
 				if (rootTruncate !== rootNew) {
-					rootNew.clearWhen(node => node.epoch === epoch && node.getRoot(epoch, true) === rootNew);
+					rootNew.clearWhen(node => node.epoch === epochNew && node.getRoot(epochNew, true) === rootNew);
 				}
-				return rootTruncate;
+				return [epochNext, rootTruncate];
 			} break;
 			case 'keep': {
-				const rootNew = super.remove(epoch, leaf);
-				return rootNew;
+				return super.remove(epoch, leaf);
 			} break;
 		}
 	}

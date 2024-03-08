@@ -187,9 +187,9 @@ class LLRBTree extends BaseTree {
 		return (node.RB = nodeRB);
 	}
 
-	static init(n, epoch = 0) {
-		const node = BTree.init(n, epoch);
-		return this.isomorph(epoch, node);
+	static init(n, epoch = new this.Epoch()) {
+		const [epochNew, root] = BTree.init(n, epoch);
+		return [epochNew, this.isomorph(epochNew, root)];
 	}
 
 	add(epoch, leaf, hint = null) {
@@ -200,20 +200,21 @@ class LLRBTree extends BaseTree {
 		if (isLazy && this.sizeLeafRemoved > 0) {
 			return super.add(epoch, leaf, hint);
 		}
-		const BNew = this.B.add(epoch, leafB, hint?.B);
-		return this.constructor.isomorph(epoch, BNew);
+		const [epochNew, BNew] = this.B.add(epoch, leafB, hint?.B);
+		return [epochNew, this.constructor.isomorph(epochNew, BNew)];
 	}
 
 	remove(epoch, leaf, hint = null) {
 		if (isLazy) {
 			return super.remove(epoch, leaf);
 		}
-		const BNew = this.B.remove(epoch, leaf.B, hint?.B);
-		const RBNew = this.constructor.isomorph(epoch, BNew);
-		if (RBNew.epoch < epoch) {
-			RBNew.setParent(epoch, null);
+		const [epochNew, BNew] = this.B.remove(epoch, leaf.B, hint?.B);
+		const RBNew = this.constructor.isomorph(epochNew, BNew);
+		if (RBNew.epoch !== epochNew) {
+			assert(this.Epoch.lt(RBNew.epoch, epochNew));
+			RBNew.setParent(epochNew, null);
 		}
-		return RBNew;
+		return [epochNew, RBNew];
 	}
 
 	clearTill(epochNew, rootNew) {

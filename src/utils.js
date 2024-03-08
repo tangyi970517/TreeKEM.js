@@ -58,6 +58,36 @@ const argmax = (list, valueFunc = x => x) => {
 	return arg;
 };
 
+/**
+ *
+ * binary search for the **last** index satisfying `predicate`
+ * - return `-1` if not found
+ * - can optionally include a linear search **from the end** in the meanwhile, to accelerate searches close to the end
+ *
+ */
+export
+const binary_search_last = (length, predicate, addingLinearSearch = false) => {
+	let l = -1, r = length;
+	let i = length-1;
+	while (l + 1 < r) {
+		const m = l + Math.floor((r - l) / 2); // r - l > 1 so >= 2, and then m >= l+1
+		if (predicate(m)) {
+			l = m;
+		} else {
+			r = m;
+		}
+		if (!addingLinearSearch) {
+			continue;
+		}
+		assert(i >= 0);
+		if (predicate(i)) {
+			return i;
+		}
+		--i;
+	}
+	return l;
+};
+
 export
 const replace = (list, itemOld, ...itemsNew) => {
 	const i = list.indexOf(itemOld);

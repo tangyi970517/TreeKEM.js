@@ -1,19 +1,28 @@
 import {assert, range, randint, sum, coalesce, replace, randomChoice} from '../utils.js';
+import Epoch, {EpochMap} from '../Epoch.js';
 import ChildTree from './persistChildTree.js';
 
 class Tree extends ChildTree {
+	static get Epoch() {
+		return Epoch;
+	}
+	get Epoch() {
+		return Epoch;
+	}
+
 	constructor(epoch, children = [], childTrace = null) {
 		super(children);
 
 		this.epoch = epoch;
 
-		this.parentHistory = [[-Infinity, null]];
+		this.parentHistory = new EpochMap();
 		for (const child of children) {
 			child.setParent(epoch, this);
 		}
 
+		assert(this.children.every(child => this.Epoch.ge(epoch, child.epoch)));
 		if (childTrace === null) {
-			assert(this.children.every(child => child.epoch < epoch));
+			assert(this.children.every(child => child.epoch !== epoch));
 		} else {
 			assert(this.children.includes(childTrace) && childTrace.epoch === epoch);
 		}
@@ -39,59 +48,26 @@ class Tree extends ChildTree {
 		return this.childTrace.getTrace();
 	}
 
-	/**
-	 *
-	 * binary search for the last `<= epoch` index
-	 * - optimize by searching from the end in the meanwhile, to accelerate the most common use cases
-	 *   (e.g. inserting/finding the latest epoch)
-	 *
-	 */
-	indexOfEpoch(epoch) {
-		let l = 0, r = this.parentHistory.length;
-		let i = this.parentHistory.length-1;
-		while (l + 1 < r) {
-			const m = l + Math.floor((r - l) / 2); // r - l > 1, so >= 2
-			if (this.parentHistory[m][0] <= epoch) {
-				l = m;
-			} else {
-				r = m;
-			}
-			assert(i >= 0);
-			if (this.parentHistory[i][0] <= epoch) {
-				return i;
-			}
-			--i;
-		}
-		return l;
-	}
 	setParent(epoch, parent) {
-		assert(epoch >= this.epoch, `setting parent for early epoch ${epoch} < ${this.epoch}`);
+		assert(this.Epoch.ge(epoch, this.epoch), `setting parent for non-descendant epoch ${epoch} ≱ ${this.epoch}`);
 		if (parent !== null) {
 			assert(epoch === parent.epoch, `set as parent for different epoch ${epoch} ≠ ${parent.epoch}`);
 		}
-		const i = this.indexOfEpoch(epoch);
-		this.parentHistory.splice(i+1, 0, [epoch, parent]);
+		this.parentHistory.set(epoch, parent);
 		return this;
 	}
 	getParent(epoch) {
-		if (this.parentHistory.length === 0) {
+		const entry = this.parentHistory.getLowestAncestor(epoch);
+		if (!entry) {
 			return null;
 		}
-		return this.parentHistory[this.indexOfEpoch(epoch)][1];
+		const [ , parent] = entry;
+		return parent;
 	}
 	unsetParent(epoch, parent) {
-		const iLast = this.indexOfEpoch(epoch);
-		for (let i = iLast; i >= 0; --i) {
-			const [e, p] = this.parentHistory[i];
-			if (e < epoch) {
-				break;
-			}
-			if (p === parent) {
-				this.parentHistory.splice(i, 1);
-				return this;
-			}
-		}
-		assert(false);
+		const deleted = this.parentHistory.delete(epoch);
+		assert(deleted === parent);
+		return this;
 	}
 
 	getRoot(epoch, caching = false) {
@@ -148,15 +124,17 @@ class Tree extends ChildTree {
 		return parent.replace(epoch, parentNew, plugin);
 	}
 
-	static init(n, epochInit = 0) {
+	static init(n, epochInit = new this.Epoch()) {
 		assert(Number.isInteger(n) && n > 0);
-		const leafInit = new this(epochInit - (n-1));
+		let epoch = epochInit;
+		const leafInit = new this(epoch);
 		let root = leafInit;
-		for (const i of range(1, n)) {
-			const epoch = epochInit - (n-1 - i);
-			root = root.add(epoch, new this(epoch), leafInit);
+		for (const _ of range(1, n)) {
+			const [epochNew, rootNew] = root.add(epoch, leafInit);
+			root.clearTill(epochNew, rootNew);
+			[epoch, root] = [epochNew, rootNew];
 		}
-		return root;
+		return [epoch, root];
 	}
 
 	add(_epoch, _node, _hint = null) {
@@ -167,8 +145,8 @@ class Tree extends ChildTree {
 		assert(false, 'abstract remove method');
 	}
 
-	update(_epoch, _node, _hint = null) {
-		return this;
+	update(epoch, _node, _hint = null) {
+		return [epoch, this];
 	}
 
 	clearTill(epochNew, rootNew) {
@@ -311,13 +289,13 @@ class SparseTree extends Tree {
 				node.isComponent = true;
 			},
 		};
-		return leafRemoved.replace(epoch, leaf, pluginDecompose);
+		return [epoch, leafRemoved.replace(epoch, leaf, pluginDecompose)];
 	}
 
 	remove(epoch, leaf, _hint = null) {
 		assert(leaf.isLeaf && leaf.getRoot(epoch) === this);
 		const leafRemoved = this.constructor.newRemoved(epoch);
-		return leaf.replace(epoch, leafRemoved);
+		return [epoch, leaf.replace(epoch, leafRemoved)];
 	}
 }
 
