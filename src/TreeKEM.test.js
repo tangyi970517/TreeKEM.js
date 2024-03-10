@@ -79,13 +79,22 @@ import CounterCrypto from './crypto/counter.js';
 const TreeKEMTypes = new Map();
 for (const usingUnmergedNodesForBlank of [false, true])
 for (const usingUnmergedNodesForSecret of [false, true])
+for (const usingSKE of [false, true])
 for (const [descTree, TreeType] of DefaultTreeTypes)
 for (const [descRegion, RegionType] of RegionTypes)
 for (const depth of [0, 1])
 {
-	TreeKEMTypes.set(`flag-unmerged-blank=${Number(usingUnmergedNodesForBlank)}, flag-unmerged-secret=${Number(usingUnmergedNodesForSecret)}, tree=(${descTree}), region-enc=(${descRegion}), region-dec-depth=${depth}`, makeTreeKEM(CounterCrypto, {
+	TreeKEMTypes.set(`
+flag-unmerged-blank=${Number(usingUnmergedNodesForBlank)}
+flag-unmerged-secret=${Number(usingUnmergedNodesForSecret)}
+flag-SKE=${Number(usingSKE)}
+tree=(${descTree})
+region-enc=(${descRegion})
+region-dec-depth=${depth}
+	`.trim().split('\n').join(', '), makeTreeKEM(CounterCrypto, {
 		usingUnmergedNodesForBlank,
 		usingUnmergedNodesForSecret,
+		usingSKE,
 	}, TreeType, RegionType, makeDepthRegion(depth)));
 }
 

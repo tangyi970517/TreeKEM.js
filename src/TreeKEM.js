@@ -186,6 +186,8 @@ const skeletonIter = function * (root, epochOld, epoch, skeletonExtra, path, reg
 	skeletonExtra.delete(root);
 	if (root.isLeaf) {
 		assert(root.data.pk);
+		const isInRegion = path.has(root) || regionPredicate(root);
+		yield [root, isInRegion, null];
 		return;
 	}
 	const isInSkeleton = root.children.map(child => isSkeleton(child, epochOld, skeletonExtra));
@@ -251,6 +253,8 @@ const makeTreeKEM = (
 		usingUnmergedNodesForBlank = usingUnmergedNodes,
 		usingUnmergedNodesForSecret = usingUnmergedNodes,
 		usingSKE = false,
+		usingSKEForPath = usingSKE,
+		usingSKEForLeaf = usingSKE,
 	} = {},
 	RawTreeType = LeftTree,
 	RegionTypeEnc = PathRegion, RegionTypeDec = PathRegion,
@@ -465,10 +469,33 @@ for (const _ of function * () {
 		}
 		const path = traceOverwrite;
 
-		const regionPredicate = node => !node.isLeaf && this.regionEnc.isInRegion(node, leaf, epoch, root, path);
+		const regionPredicate = node => this.regionEnc.isInRegion(node, leaf, epoch, root, path);
 		const seedMap = new Map();
 		for (const [node, isInRegion, childTrace] of skeletonIter(root, epochOld, epoch, skeletonExtra, path, regionPredicate, traceOverwrite)) {
-			assert(!node.isLeaf);
+			if (node.isLeaf) {
+				if (usingSKEForLeaf) {
+					this.taint.rinseNode(node);
+					node.data.kk = null;
+				}
+				if (!isInRegion) {
+					continue;
+				}
+				const seed = this.crypto.random();
+				let seedNext, secretSKE;
+				if (usingSKEForLeaf) {
+					[seedNext, secretSKE] = this.crypto.PRG(seed, 2);
+					node.data.kk = this.crypto.SKE_Gen(secretSKE);
+					if (!path.has(node)) {
+						this.taint.taint(leaf, node);
+					}
+				} else {
+					seedNext = seed;
+				}
+				seedMap.set(node, seedNext);
+				assert(node.data.pk);
+				yield this.crypto.PKE_Enc(node.data.pk, seed);
+				continue;
+			}
 			assert(childTrace === null || node.children.indexOf(childTrace) >= 0);
 			node.data.sizeBlank = sum(node.children.map(child => child.data.sizeBlank), Number(!isInRegion));
 			node.data.pk = null;
@@ -502,7 +529,7 @@ for (const _ of function * () {
 				seed = this.crypto.random();
 			}
 			let seedNext, secret, secretSKE;
-			if (usingSKE) {
+			if (usingSKE && (usingSKEForPath || path.has(node))) {
 				[seedNext, secret, secretSKE] = this.crypto.PRG(seed, 3);
 				node.data.kk = this.crypto.SKE_Gen(secretSKE);
 			} else {
@@ -551,8 +578,6 @@ for (const _ of function * () {
 			return;
 		}
 		assert(!root.isLeaf || root.data.pk);
-		assert(!root.isLeaf || !root.data.kk);
-		assert(!usingSKE || root.isLeaf || (!root.data.pk) === (!root.data.kk));
 		if (root.data.pk) {
 			if (root.data.kk && (path.has(root) || this.taint.hasTaint(leaf, root))) {
 				yield this.crypto.SKE_Enc(root.data.kk, seed);
