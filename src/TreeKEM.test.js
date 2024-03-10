@@ -11,7 +11,7 @@ const testTreeKEM = (TreeKEMType, n, T, verifyingTaints = false, verbose = 0) =>
 	const count = [0, 0, 0, 0];
 	for (const t of range(T)) {
 		///
-do {
+while (true) {
 		///
 		const op = randint(3);
 		switch (op) {
@@ -56,7 +56,7 @@ do {
 			++count[3];
 		}
 		///
-} while (false) ;
+break; }
 		///
 	}
 	const [nAdd, nRem, nUpd, nCommit] = count;

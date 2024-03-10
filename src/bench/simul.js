@@ -160,7 +160,7 @@ const genOpSeq = function * (n, T, [pAdd, pRem, pUpd = 1 - pAdd - pRem], {
 	};
 	for (const t of range(T)) {
 		///
-do {
+while (true) {
 		///
 		const {op} = randomChoice([
 			{op: 'add', weight: pAdd},
@@ -210,7 +210,7 @@ do {
 			++tTotal['commit'];
 		}
 		///
-} while (false) ;
+break; }
 		///
 	}
 

@@ -11,7 +11,7 @@ const testTree = (TreeType, n, T, verifyingLeaves = false, verbose = 0) => {
 	const count = [0, 0, 0];
 	for (const t of range(T)) {
 		///
-do {
+while (true) {
 		///
 		const treeOld = tree;
 		const op = randint(3);
@@ -67,7 +67,7 @@ do {
 		}
 		++count[op];
 		///
-} while (false) ;
+break; }
 		///
 	}
 	const [nAdd, nRem, nUpd] = count;
