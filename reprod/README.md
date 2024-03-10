@@ -52,7 +52,7 @@ Common setup:
 - 3 tree types:
   01. LBBT, add at leftmost "removed" leaf (if any)
   01. 2-3 tree, add at optimal position, use "borrow first and do not consider hint" borrow-or-merge strategy
-  01. LLRBT, same add position and borrow-or-merge strategy
+  01. LLRBT, 2-3 mode (*very slightly* better performance than normal 2-3-4 mode), same add position and borrow-or-merge strategy
 - region: Multicast is almost equivalent to using the entire tree as `regionGen` (and still paths as `regionEnc`) along with the SKE optimization
   > One difference is that we put long-term keys at leaves and (thus) do not have SKE keys at leaves; we can just count the PKE encryptions as extra SKE encryptions.
 - protocol:
@@ -69,7 +69,7 @@ Common setup:
 Experiment 1: scalability
 - 2 settings:
   01. normal
-  01. remove 99% users at the beginning (costs not accounted) and then proceed normally
+  01. remove 99% users at the beginning (costs not accounted) and then proceed normally (with accordingly `0.1 * 2^i` operations)
 - figures: average number of encryptions per operation as function of "tree size" `2^i`, for the 2 settings
 
 Experiment 2: effect of remove operation probability

@@ -5,7 +5,7 @@ const LeftTree = makeLeftTree('leftmost');
 import {make23Tree} from '../src/trees/BTree.js';
 const $23Tree = make23Tree('optimal', 'borrow-merge');
 import {makeLLRBTree} from '../src/trees/LLRBTree.js';
-const LLRBTree = makeLLRBTree('normal', 'optimal', 'borrow-merge');
+const LLRBTree = makeLLRBTree('2-3', 'optimal', 'borrow-merge');
 const TreeTypes = [
 	['LBBTs', LeftTree],
 	['2-3 Trees', $23Tree],
@@ -59,15 +59,16 @@ const runTask = function * (Task, scale, {
 		const setup = {size, n, T, pAdd, pRem, tTotal};
 
 		for (const [type, stat] of run(scope, seq)) {
-			const value = (stat.SEnc + stat.Enc) / T;
+			const value = stat.SEnc / tTotal.commit;
 			yield {...scope, ...setup, type, ...stat, value};
 		}
 	}
 };
 
-const genRemove99 = (n, ...args) => {
+const genRemove99 = (n, T, ...args) => {
 	const nAfter = Math.ceil(n / 100);
-	const seq = [...genOpSeq(nAfter, ...args)];
+	const tAfter = Math.ceil(T / 100);
+	const seq = [...genOpSeq(nAfter, tAfter, ...args)];
 
 	const [op, users, admin] = seq[0];
 	assert(op === 'init');
