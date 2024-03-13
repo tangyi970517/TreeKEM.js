@@ -188,13 +188,14 @@ while (true) {
 			case 'update': {
 				const updatees = allowingUpdOfAdmin ? (admins ?? []).concat(users) : users;
 				if (updatees.length < 1) {
+					assert(admins && !allowingUpdOfAdmin);
 					continue;
 				}
 				const userCom = randomUnder(updatees, distUserUpd, ...distUserUpdArgs);
 				if (allowingUpdByOther) {
 					const updaters = usingUpdByAdmin ? admins ?? users : users;
 					user = updaters[randint(updaters.length)];
-					yield [op, userCom, user];
+					yield [op, user, userCom];
 					break;
 				} else {
 					user = userCom;

@@ -504,7 +504,7 @@ Method `remove(id, id')`:
 01. if `s` is empty then `s := {[roof of t']}`
 01. `skeletonGen(id, t', s)`
 
-Method `update(id', id ?= id')`:
+Method `update(id, id' ?= id)`:
 01. let `l`, `l'` be the leaves for `id`, `id'`, respectively
 01. let `s` be the path from `l'` to the root
 01. `skeletonGen(id, t, s)`

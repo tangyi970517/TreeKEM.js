@@ -37,7 +37,7 @@ while (true) {
 				const userCom = users[randint(users.length)];
 				const user = users[randint(users.length)];
 				if (verbose >= 2) console.log('update', userCom, 'by', user, 'at', t);
-				TreeKEM.update(userCom, user);
+				TreeKEM.update(user, userCom);
 				if (verbose >= 3) TreeKEM.tree.root.print();
 			} break;
 		}

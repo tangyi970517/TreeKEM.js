@@ -391,7 +391,7 @@ class TreeKEM {
 		return clearingOldNodes ? null : treeOld;
 	}
 
-	update(b, a = b, clearingOldNodes = true) {
+	update(a, b = a, clearingOldNodes = true) {
 		assert(this.users.has(a) && this.users.has(b));
 		const ua = this.users.get(a), ub = this.users.get(b);
 
