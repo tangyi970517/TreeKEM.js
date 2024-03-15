@@ -83,26 +83,6 @@ class LeftTree extends BaseTree {
 		return rootNew;
 	}
 
-	* split(epoch, node) {
-		for (const sibling of node.getCopath(epoch)) {
-			yield sibling;
-			if (this.children.includes(sibling)) {
-				return;
-			}
-		}
-		assert(false);
-	}
-	static merge(epoch, roots) {
-		assert(roots.length > 0);
-		if (roots.length === 1) {
-			return roots[0];
-		}
-		const [childR, childL] = roots.slice(0, 2);
-		const childTrace = childR.epoch === epoch ? childR : null;
-		const node = new this(epoch, [childL, childR], childTrace);
-		roots.splice(0, 2, node); // mutate for efficiency
-		return this.merge(epoch, roots);
-	}
 	getRightPerfect() {
 		assert(!this.isPerfect);
 		if (this.rawR.isPerfect) {

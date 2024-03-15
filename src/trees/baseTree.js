@@ -301,6 +301,8 @@ class SparseTree extends Tree {
 
 export
 const extendBinaryTree = TreeType => (
+	///
+///
 class BinaryTree extends TreeType {
 	constructor(epoch, children, childTrace) {
 		super(epoch, children, childTrace);
@@ -319,7 +321,35 @@ class BinaryTree extends TreeType {
 		}
 		return this.children[1];
 	}
+
+	* split(epoch, node) {
+		if (node === this) {
+			return;
+		}
+		for (const sibling of node.getCopath(epoch)) {
+			yield sibling;
+			if (this.children.includes(sibling)) {
+				return;
+			}
+		}
+		assert(false);
+	}
+	static merge(epoch, roots, order = 0, node = null) {
+		if (roots.length === 0) {
+			return node;
+		}
+		const [sibling] = roots.splice(0, 1); // mutate for efficiency
+		if (node === null) {
+			return this.merge(epoch, roots, order, sibling);
+		}
+		const children = order ? [node, sibling] : [sibling, node];
+		const childTrace = node.epoch === epoch ? node : sibling.epoch === epoch ? sibling : null;
+		const nodeNew = new this(epoch, children, childTrace);
+		return this.merge(epoch, roots, order, nodeNew);
+	}
 }
+///
+	///
 );
 
 export
