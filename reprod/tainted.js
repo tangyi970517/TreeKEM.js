@@ -22,73 +22,81 @@ const TreeKEMTypes = [
 ];
 
 import {genOpSeq, testOpSeq} from '../src/bench/simul.js';
+import {work} from '../src/bench/worker.js';
 
-const run = function * (scope, seq, ...args) {
+export // for worker
+const run = function * (scope, setup) {
+	const {n, T, pAdd, pRem, options} = setup;
+	const seq = [...genOpSeq(n, T, [pAdd, pRem], {
+		startingWarm: true,
+		...options,
+	})];
+	const [[ , {admins, nTotal, tTotal}]] = seq.splice(-1, 1);
+	const adminSet = new Set(admins ?? []);
+
 	const seqOnlyCommitForUpdate = seq.filter(([op], i, seq) => op !== 'commit' || seq[i-1][0] === 'update');
 
 	for (const [type, TreeKEMType, usingCommit] of TreeKEMTypes) {
-		console.warn('run', scope);
+		console.warn('run', {...scope, type});
 		const seqUsingCommit = usingCommit ? seq : seqOnlyCommitForUpdate;
-		const stat = testOpSeq(TreeKEMType, seqUsingCommit, ...args);
-		console.warn('end', scope, stat);
-		yield [type, stat];
+		const stat = testOpSeq(TreeKEMType, seqUsingCommit, adminSet);
+		const value = stat.Enc / nTotal;
+		console.warn('end', {...scope, type}, stat);
+		yield {...scope, type, ...setup, nTotal, tTotal, stat, value};
 	}
 };
 
 const SCALE = 15;
 const REPEAT = 8; // unspecified in paper
 
-const runAdmin = function * (Task, scale) {
+const runAdmin = async function * (Task, scale) {
 	const size = 2 ** scale;
 	const n = size / 2;
 	const T = size * 10;
 	const nAdmin = Math.max(n / 64, 1);
 	const pAdd = 0.1, pRem = 0.1;
 
+	const threads = [];
 	for (const repeat of range(REPEAT)) {
-		const seq = [...genOpSeq(n, T, [pAdd, pRem], {
-			nAdmin,
-			startingWarm: true,
-			usingAdmin: true,
-		})];
-		const [[ , {admins, nTotal, tTotal}]] = seq.splice(-1, 1);
-		const adminSet = new Set(admins);
-
 		const scope = {Task, scale, repeat};
-		const setup = {size, n, T, pAdd, pRem, nAdmin, nTotal, tTotal};
+		const setup = {size, n, T, nAdmin, pAdd, pRem, options: {
+			nAdmin,
+			usingAdmin: true,
+		}};
+		threads.push(work(import.meta.url, 'run', scope, setup));
+	}
 
-		for (const [type, stat] of run(scope, seq, adminSet)) {
+	for (const thread of threads) {
+		for await (const data of thread) {
+			const {nAdmin, nTotal, stat} = data;
 			for (const [typeUser, value] of [
 				['non-admin', (stat.Enc - stat.EncMark) / (nTotal - nAdmin)],
 				['admin', stat.EncMark / nAdmin],
 				['user', stat.Enc / nTotal],
 			]) {
-				yield {...scope, ...setup, type, ...stat, typeUser, value};
+				yield {...data, typeUser, value};
 			}
 		}
 	}
 };
 
-const runNonAdmin = function * (Task, distUserUpd, scale) {
+const runNonAdmin = async function * (Task, distUserUpd, scale) {
 	const size = 2 ** scale;
 	const n = size / 2;
 	const T = size * 10;
 	const pAdd = 0.1, pRem = 0.1;
 
+	const threads = [];
 	for (const repeat of range(REPEAT)) {
-		const seq = [...genOpSeq(n, T, [pAdd, pRem], {
-			startingWarm: true,
-			distUserUpd,
-		})];
-		const [[ , {nTotal, tTotal}]] = seq.splice(-1, 1);
-
 		const scope = {Task, distUserUpd, scale, repeat};
-		const setup = {size, n, T, pAdd, pRem, distUserUpd, nTotal, tTotal};
+		const setup = {size, n, T, pAdd, pRem, distUserUpd, options: {
+			distUserUpd,
+		}};
+		threads.push(work(import.meta.url, 'run', scope, setup));
+	}
 
-		for (const [type, stat] of run(scope, seq)) {
-			const value = stat.Enc / nTotal;
-			yield {...scope, ...setup, type, ...stat, value};
-		}
+	for (const thread of threads) {
+		yield * thread;
 	}
 };
 
@@ -99,7 +107,7 @@ if (import.meta.main) {
 	let dataset = null;
 
 	if (Task === 'admin') {
-		dataset = function * () {
+		dataset = async function * () {
 			for (const scale of range(3, SCALE+1)) {
 				yield * runAdmin(Task, scale);
 			}
@@ -107,7 +115,7 @@ if (import.meta.main) {
 	}
 
 	if (Task === 'dist') {
-		dataset = function * () {
+		dataset = async function * () {
 			for (const distUserUpd of ['uniform', 'Zipf']) {
 				for (const scale of range(3, SCALE+1)) {
 					yield * runNonAdmin(Task, distUserUpd, scale);
@@ -119,7 +127,7 @@ if (import.meta.main) {
 	if (dataset) {
 		console.log('[');
 		let _ = 0;
-		for (const data of dataset) {
+		for await (const data of dataset) {
 			console.log(_++ ? ',' : ' ', JSON.stringify(data));
 		}
 		console.log(']');
