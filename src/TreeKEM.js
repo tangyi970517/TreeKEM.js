@@ -305,6 +305,7 @@ const skeletonIter = function * (root, epochOld, epoch, skeletonExtra, path, reg
 	if (!isInRegion) {
 		assert(!childTrace);
 		yield [root, false, null];
+		return;
 	}
 	yield [root, isInRegion, childTrace];
 };
