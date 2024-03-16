@@ -19,6 +19,8 @@ import CounterCrypto from '../src/crypto/counter.js';
 
 import {makeTreeKEM} from '../src/TreeKEM.js';
 const TreeKEMTypes = TreeTypes.map(([type, TreeType]) => [type, makeTreeKEM(CounterCrypto, {
+	aligningTrace: false,
+	skippingSparseNodes: false,
 	usingUnmergedNodes: false,
 	usingSKE: true,
 }, TreeType, FullRegion, PathRegion)]);

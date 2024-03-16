@@ -96,11 +96,17 @@ class SecretManager {
 		this.debug(leaf);
 	}
 	blankLeafSKE(leaf) {
+		if (leaf.isAllRemoved) {
+			return;
+		}
 		assert(this.secretMap.has(leaf));
 		const entry = this.get(leaf);
 		entry.kk = null;
 	}
 	fillLeafSKE(leaf, seed, crypto, includingSKE = false) {
+		if (leaf.isAllRemoved) {
+			return seed;
+		}
 		if (!includingSKE) {
 			return seed;
 		}
@@ -258,17 +264,14 @@ class TaintManager {
 	}
 }
 
-const isSkeleton = (node, epochOld, skeletonExtra) => !node.isAllRemoved && (node.Epoch.lt(epochOld, node.epoch) || skeletonExtra.has(node));
-
-const skeletonIter = function * (root, epochOld, epoch, skeletonExtra, path, regionPredicate, trace = new Map()) {
-	assert(isSkeleton(root, epochOld, skeletonExtra));
-	skeletonExtra.delete(root);
+const skeletonIter = function * (root, skeletonPredicate, path, regionPredicate, trace = new Map()) {
+	assert(skeletonPredicate(root));
 	if (root.isLeaf) {
 		const isInRegion = path.has(root) || regionPredicate(root);
 		yield [root, isInRegion, null];
 		return;
 	}
-	const isInSkeleton = root.children.map(child => isSkeleton(child, epochOld, skeletonExtra));
+	const isInSkeleton = root.children.map(child => skeletonPredicate(child));
 	/**
 	 *
 	 * choose trace for PRG:
@@ -286,7 +289,7 @@ const skeletonIter = function * (root, epochOld, epoch, skeletonExtra, path, reg
 		if (!isInSkeleton[i]) {
 			continue;
 		}
-		yield * skeletonIter(child, epochOld, epoch, skeletonExtra, path, regionPredicate, trace);
+		yield * skeletonIter(child, skeletonPredicate, path, regionPredicate, trace);
 		if (!(path.has(child) || regionPredicate(child))) {
 			continue;
 		}
@@ -327,10 +330,15 @@ export
 const makeTreeKEM = (
 	Crypto = DefaultCrypto,
 	{
+		aligningTrace = true,
+		skippingSparseNodes = true,
+
 		usingProposal = true,
+
 		usingUnmergedNodes = true,
 		usingUnmergedNodesForBlank = usingUnmergedNodes,
 		usingUnmergedNodesForSecret = usingUnmergedNodes,
+
 		usingSKE = false,
 		usingSKEForPath = usingSKE,
 		usingSKEForLeaf = usingSKE,
@@ -535,9 +543,11 @@ for (const _ of function * () {
 		}
 		const path = traceOverwrite;
 
+		const skeletonPredicate = node => !(skippingSparseNodes && node.isAllRemoved) && (node.Epoch.lt(epochOld, node.epoch) || skeletonExtra.has(node));
 		const regionPredicate = node => this.regionEnc.isInRegion(node, leaf, epoch, root, path);
 		const seedMap = new Map();
-		for (const [node, isInRegion, childTrace] of skeletonIter(root, epochOld, epoch, skeletonExtra, path, regionPredicate, traceOverwrite)) {
+		for (const [node, isInRegion, childTrace] of skeletonIter(root, skeletonPredicate, path, regionPredicate, aligningTrace ? traceOverwrite : undefined)) {
+			skeletonExtra.delete(node);
 			assert(childTrace === null || node.children.indexOf(childTrace) >= 0);
 			if (node.isLeaf) {
 				if (usingSKEForLeaf) {
@@ -553,9 +563,7 @@ for (const _ of function * () {
 				if (usingSKEForLeaf && !path.has(node)) {
 					this.taint.taint(leaf, node);
 				}
-				const {pk} = this.secrets.get(node);
-				assert(pk);
-				yield this.crypto.PKE_Enc(pk, seed);
+				yield * this.skeletonEnc(node, seed, leaf, path);
 				continue;
 			}
 			this.taint.rinseNode(node);
@@ -598,9 +606,7 @@ for (const _ of function * () {
 				if (path.has(node) || !this.regionDec.isInRegion(node, leafOther, epoch, root, path)) {
 					continue;
 				}
-				const {pk} = this.secrets.get(leafOther);
-				assert(pk);
-				yield this.crypto.PKE_Enc(pk, seed);
+				yield * this.skeletonEnc(leafOther, seed, leaf, path);
 				this.taint.taint(leafOther, node);
 			}
 		}
@@ -616,7 +622,7 @@ for (const _ of function * () {
 	}
 
 	* skeletonEnc(root, seed, leaf, path) {
-		if (root.isAllRemoved) {
+		if (skippingSparseNodes && root.isAllRemoved) {
 			return;
 		}
 		if (root === leaf) {
@@ -635,6 +641,9 @@ for (const _ of function * () {
 				}
 			}
 		} else {
+			if (!skippingSparseNodes && root.isAllRemoved && root.isLeaf) {
+				return;
+			}
 			assert(!root.isLeaf);
 			for (const child of root.children) {
 				yield * this.skeletonEnc(child, seed, leaf, path);

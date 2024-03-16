@@ -77,24 +77,36 @@ import {makeDepthRegion} from './regions/DepthRegion.js';
 import CounterCrypto from './crypto/counter.js';
 
 const TreeKEMTypes = new Map();
-for (const usingUnmergedNodesForBlank of [false, true])
-for (const usingUnmergedNodesForSecret of [false, true])
-for (const usingSKE of [false, true])
 for (const [descTree, TreeType] of DefaultTreeTypes)
 for (const [descRegion, RegionType] of RegionTypes)
 for (const depth of [0, 1])
 {
+	const aligningTrace = Boolean(randint(2));
+	const skippingSparseNodes = Boolean(randint(2));
+	const usingUnmergedNodesForBlank = Boolean(randint(2));
+	const usingUnmergedNodesForSecret = Boolean(randint(2));
+	const usingSKE = Boolean(randint(2));
+	const usingSKEForPath = Boolean(randint(2));
+	const usingSKEForLeaf = Boolean(randint(2));
 	TreeKEMTypes.set(`
+flag-trace=${Number(aligningTrace)}
+flag-sparse=${Number(skippingSparseNodes)}
 flag-unmerged-blank=${Number(usingUnmergedNodesForBlank)}
 flag-unmerged-secret=${Number(usingUnmergedNodesForSecret)}
 flag-SKE=${Number(usingSKE)}
+flag-SKE-path=${Number(usingSKEForPath)}
+flag-SKE-leaf=${Number(usingSKEForLeaf)}
 tree=(${descTree})
 region-enc=(${descRegion})
 region-dec-depth=${depth}
 	`.trim().split('\n').join(', '), makeTreeKEM(CounterCrypto, {
+		aligningTrace,
+		skippingSparseNodes,
 		usingUnmergedNodesForBlank,
 		usingUnmergedNodesForSecret,
 		usingSKE,
+		usingSKEForPath,
+		usingSKEForLeaf,
 	}, TreeType, RegionType, makeDepthRegion(depth)));
 }
 

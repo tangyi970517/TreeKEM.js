@@ -9,12 +9,10 @@ import FullRegion from '../src/regions/FullRegion.js';
 import CounterCrypto from '../src/crypto/counter.js';
 
 import {makeTreeKEM} from '../src/TreeKEM.js';
-const TreeKEM = makeTreeKEM(CounterCrypto, {
+const [TreeKEM, TaintedTreeKEM] = [PathRegion, FullRegion].map(RegionType => makeTreeKEM(CounterCrypto, {
+	skippingSparseNodes: false,
 	usingUnmergedNodes: false,
-}, LeftTree, PathRegion, PathRegion);
-const TaintedTreeKEM = makeTreeKEM(CounterCrypto, {
-	usingUnmergedNodes: false,
-}, LeftTree, FullRegion, PathRegion);
+}, LeftTree, RegionType, PathRegion));
 const TreeKEMTypes = [
 	['TKEM', TreeKEM, false],
 	['TKEM_commit', TreeKEM, true],
