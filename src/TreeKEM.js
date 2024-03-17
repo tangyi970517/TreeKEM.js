@@ -57,7 +57,10 @@ class SecretManager {
 		this.secretMap.delete(node);
 		this.debug(node);
 	}
-	fill(node, seed, crypto, includingSKE = false) {
+	fill(node, seed, crypto, includingAny = true, includingSKE = false) {
+		if (!includingAny) {
+			return seed;
+		}
 		assert(!this.secretMap.has(node));
 		let seedNext, secret, kk;
 		if (includingSKE) {
@@ -145,8 +148,8 @@ class SecretManager {
 				kk,
 				unmerged: [].concat(unmerged ?? [], node.decompose.slice(1)),
 			});
+			this.debug(node);
 		}
-		this.debug(node);
 		return nodeSecret;
 	}
 }
@@ -266,8 +269,8 @@ class TaintManager {
 
 const skeletonIter = function * (root, skeletonPredicate, path, regionPredicate, trace = new Map()) {
 	assert(skeletonPredicate(root));
+	const isInRegion = path.has(root) || regionPredicate(root);
 	if (root.isLeaf) {
-		const isInRegion = path.has(root) || regionPredicate(root);
 		yield [root, isInRegion, null];
 		return;
 	}
@@ -304,12 +307,7 @@ const skeletonIter = function * (root, skeletonPredicate, path, regionPredicate,
 		}
 	}
 	const childTrace = traceInSkeletonCapRegion ?? childTraceInSkeletonCapRegion ?? firstInSkeletonCapRegion;
-	const isInRegion = path.has(root) || regionPredicate(root);
-	if (!isInRegion) {
-		assert(!childTrace);
-		yield [root, false, null];
-		return;
-	}
+	assert(isInRegion || !childTrace);
 	yield [root, isInRegion, childTrace];
 };
 
@@ -440,11 +438,6 @@ class TreeKEM {
 		const [_epochOld, treeOld] = this.tree.remove(ub, ua);
 
 		const skeletonExtra = new Set();
-		const {root} = this.tree;
-		if (root.epoch !== this.tree.epoch) {
-			assert(root.Epoch.lt(root.epoch, this.tree.epoch));
-			skeletonExtra.add(root);
-		}
 		for (const node of this.taint.getTaint(ub)) {
 			if (node.getRoot(this.tree.epoch, true) === this.tree.root) {
 				insertPath(this.tree.epoch, node, skeletonExtra);
@@ -480,7 +473,7 @@ class TreeKEM {
 			}
 		}
 
-		this.insertSkeleton(skeletonExtra);
+		this.insertSkeleton(skeletonExtra, this.tree.root !== treeOld);
 		if (!usingProposal) {
 			this.commit(a);
 		}
@@ -546,38 +539,47 @@ for (const _ of function * () {
 		const skeletonPredicate = node => !(skippingSparseNodes && node.isAllRemoved) && (node.Epoch.lt(epochOld, node.epoch) || skeletonExtra.has(node));
 		const regionPredicate = node => this.regionEnc.isInRegion(node, leaf, epoch, root, path);
 		const seedMap = new Map();
-		for (const [node, isInRegion, childTrace] of skeletonIter(root, skeletonPredicate, path, regionPredicate, aligningTrace ? traceOverwrite : undefined)) {
+		const skeleton = skeletonPredicate(root) ? skeletonIter(root, skeletonPredicate, path, regionPredicate, aligningTrace ? traceOverwrite : undefined) : [];
+		for (const [node, isInRegion, childTrace] of skeleton) {
 			skeletonExtra.delete(node);
 			assert(childTrace === null || node.children.indexOf(childTrace) >= 0);
+
 			if (node.isLeaf) {
 				if (usingSKEForLeaf) {
 					this.taint.rinseNode(node);
 					this.secrets.blankLeafSKE(node);
 				}
+
 				if (!isInRegion) {
 					continue;
 				}
+
 				const seed = this.crypto.random();
 				const seedNext = this.secrets.fillLeafSKE(node, seed, this.crypto, usingSKEForLeaf);
 				seedMap.set(node, seedNext);
+
 				if (usingSKEForLeaf && !path.has(node)) {
 					this.taint.taint(leaf, node);
 				}
+
 				yield * this.skeletonEnc(node, seed, leaf, path);
 				continue;
 			}
+
 			this.taint.rinseNode(node);
 			this.secrets.blank(node);
+
+			let recomposed = false;
 			if ((!isInRegion && usingUnmergedNodesForBlank) || (isInRegion && usingUnmergedNodesForSecret)) {
 				const nodeSecret = this.secrets.recompose(node);
 				this.taint.replaceTaint(nodeSecret, node);
-				if (this.secrets.has(node)) {
-					continue;
-				}
+				recomposed = Boolean(nodeSecret);
 			}
+
 			if (!isInRegion) {
 				continue;
 			}
+
 			let seed;
 			if (seedMap.has(childTrace)) {
 				seed = seedMap.get(childTrace);
@@ -587,17 +589,20 @@ for (const _ of function * () {
 				seed = this.crypto.random();
 			}
 			const includingSKE = usingSKE && (usingSKEForPath || path.has(node));
-			const seedNext = this.secrets.fill(node, seed, this.crypto, includingSKE);
+			const seedNext = this.secrets.fill(node, seed, this.crypto, !recomposed, includingSKE);
 			seedMap.set(node, seedNext);
-			if (!path.has(node)) {
+
+			if (!recomposed && !path.has(node)) {
 				this.taint.taint(leaf, node);
 			}
+
 			for (const child of node.children) {
 				if (child === childTrace) {
 					continue;
 				}
 				yield * this.skeletonEnc(child, seed, leaf, path);
 			}
+
 			for (const leafOther of [ /* hint from `regionDec` */ ]) {
 				if (leafOther === leaf) {
 					continue;
@@ -615,7 +620,7 @@ for (const _ of function * () {
 		if (seedMap.has(root)) {
 			this.secret = seedMap.get(root);
 		} else {
-			assert(seedMap.size === 0 || usingUnmergedNodesForSecret);
+			assert(seedMap.size === 0);
 			this.secret = this.crypto.random();
 			yield * this.skeletonEnc(root, this.secret, leaf, path);
 		}
@@ -658,7 +663,7 @@ for (const _ of function * () {
 		if (this.secrets.has(node)) {
 			this.taint.rinseNode(node);
 		} else {
-			this.secrets.fill(node, this.cryptoUser.random(), this.crypto, usingSKE);
+			this.secrets.fill(node, this.cryptoUser.random(), this.crypto, true, usingSKE);
 		}
 		for (const child of node.children) {
 			this._fill(child);
