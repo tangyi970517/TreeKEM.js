@@ -7,33 +7,27 @@ class TreeState {
 	}
 
 	init(n) {
-		const {epoch, root} = this;
-		const epochNew = epoch.step();
-		[this.epoch, this.root] = root.constructor.init(n, epochNew);
-		assert(root.Epoch.ge(this.epoch, epochNew));
-		return [epoch, root];
+		return this.OP((root, epochNew) => root.constructor.init(n, epochNew));
 	}
 	add(hint) {
-		const {epoch, root} = this;
-		const epochNew = epoch.step();
-		const leafNew = new root.constructor(epochNew);
-		[this.epoch, this.root] = root.add(epochNew, leafNew, hint);
-		assert(root.Epoch.ge(this.epoch, epochNew));
-		return [epoch, root, leafNew];
+		return this.OP((root, epochNew) => {
+			const leafNew = new root.constructor(epochNew);
+			return [...root.add(epochNew, leafNew, hint), leafNew];
+		});
 	}
 	remove(node, hint) {
-		const {epoch, root} = this;
-		const epochNew = epoch.step();
-		[this.epoch, this.root] = root.remove(epochNew, node, hint);
-		assert(root.Epoch.ge(this.epoch, epochNew));
-		return [epoch, root];
+		return this.OP((root, epochNew) => root.remove(epochNew, node, hint));
 	}
 	update(node, hint) {
+		return this.OP((root, epochNew) => root.update(epochNew, node, hint));
+	}
+	OP(op) {
 		const {epoch, root} = this;
 		const epochNew = epoch.step();
-		[this.epoch, this.root] = root.update(epochNew, node, hint);
+		let extra;
+		[this.epoch, this.root, ...extra] = op(root, epochNew);
 		assert(root.Epoch.ge(this.epoch, epochNew));
-		return [epoch, root];
+		return [epoch, root, ...extra];
 	}
 }
 
@@ -407,70 +401,53 @@ class TreeKEM {
 	}
 
 	add(a, b, clearingOldNodes = true) {
-		assert(this.users.has(a) && !this.users.has(b));
-		const ua = this.users.get(a);
-
-		const [_epochOld, treeOld, leafNew] = this.tree.add(ua);
-
-		this.secrets.initLeaf(leafNew, b, this.cryptoUser);
-		this.users.set(b, leafNew);
-
-		const skeletonExtra = new Set();
-
-		this.insertSkeleton(skeletonExtra);
-		if (!usingProposal) {
-			this.commit(a);
-		}
-
-		this.taint.rinseTill(treeOld, this.tree.epoch, this.tree.root);
-		if (clearingOldNodes) {
-			treeOld.clearTill(this.tree.epoch, this.tree.root);
-		}
-
-		return clearingOldNodes ? null : treeOld;
+		return this.OP('add', a, b, clearingOldNodes);
 	}
 
 	remove(a, b, clearingOldNodes = true) {
-		assert(this.users.has(a) && this.users.has(b) && b !== a);
-		const ua = this.users.get(a), ub = this.users.get(b);
-		this.users.delete(b);
-
-		const [_epochOld, treeOld] = this.tree.remove(ub, ua);
-
-		const skeletonExtra = new Set();
-		for (const node of this.taint.getTaint(ub)) {
-			if (node.getRoot(this.tree.epoch, true) === this.tree.root) {
-				insertPath(this.tree.epoch, node, skeletonExtra);
-			}
-		}
-		this.taint.rinseUser(ub);
-
-		this.insertSkeleton(skeletonExtra);
-		if (!usingProposal) {
-			this.commit(a);
-		}
-
-		this.taint.rinseTill(treeOld, this.tree.epoch, this.tree.root);
-		if (clearingOldNodes) {
-			treeOld.clearTill(this.tree.epoch, this.tree.root);
-		}
-
-		return clearingOldNodes ? null : treeOld;
+		return this.OP('remove', a, b, clearingOldNodes);
 	}
 
 	update(a, b = a, clearingOldNodes = true) {
-		assert(this.users.has(a) && this.users.has(b));
-		const ua = this.users.get(a), ub = this.users.get(b);
+		return this.OP('update', a, b, clearingOldNodes);
+	}
 
-		const [_epochOld, treeOld] = this.tree.update(ub, ua);
+	OP(op, a, b, clearingOldNodes) {
+		assert(this.users.has(a));
+		const ua = this.users.get(a);
+		let ub;
+		let epochOld, treeOld;
+		if (op === 'add') {
+			assert(!this.users.has(b));
+			[epochOld, treeOld, ub] = this.tree.add(ua);
+			this.secrets.initLeaf(ub, b, this.cryptoUser);
+			this.users.set(b, ub);
+		} else {
+			assert(this.users.has(b));
+			ub = this.users.get(b);
+			if (op === 'remove') {
+				assert(b !== a);
+				this.users.delete(b);
+			}
+			[epochOld, treeOld] = this.tree[op](ub, ua);
+		}
 
-		const skeletonExtra = new Set(ub.getPath(this.tree.epoch));
+		let skeletonRefresh;
+		if (op === 'update') {
+			skeletonRefresh = ub.getPath(this.tree.epoch);
+		} else {
+			skeletonRefresh = [];
+		}
+		const skeletonExtra = new Set(skeletonRefresh);
 		for (const node of this.taint.getTaint(ub)) {
 			if (node.getRoot(this.tree.epoch, true) === this.tree.root) {
 				insertPath(this.tree.epoch, node, skeletonExtra);
 			} else {
-				assert(node.isComponent);
+				assert(op === 'remove' || node.isComponent);
 			}
+		}
+		if (op === 'remove') {
+			this.taint.rinseUser(ub);
 		}
 
 		this.insertSkeleton(skeletonExtra, this.tree.root !== treeOld);
