@@ -113,6 +113,11 @@ Function `remove(t: LBBT, l: Leaf; _h: Leaf?) -> LBBT`:
 01. return `truncate(t')`
     > If the return value is `null` then it means the last node in the tree is removed and we might raise an error, depending on the use case.
 
+#### [Legacy] Variant: random add
+
+In `add`:
+instead of `GenericLazy.add(t, l; h)`, use `GenericLazy.add(t, l; null)` (notice the null hint, which lets `GenericLazy.add` choose a random "removed" leaf).
+
 #### [Legacy] Variant: random add/append
 
 In `add`:
@@ -124,6 +129,11 @@ In `add`:
 
 In `add`:
 do not `GenericLazy.add` and always `append`.
+
+#### Variant: leftmost add
+
+In `add`:
+instead of `GenericLazy.add(t, l; h)`, use `GenericLazy.add(t, l; null)` and inside use the leftmost instead of a random "removed" leaf as `r`.
 
 #### Variant: no-truncate
 
@@ -281,6 +291,16 @@ Function `remove(t: BT, l: Leaf; h: Leaf?) -> BT`:
 
 In `add`:
 use a random leaf instead of the given value (if not null) as `h`.
+
+#### Variant: optimal add
+
+In `add`:
+use a (say, leftmost) "optimal" leaf, described below, instead of the given value (if not null) as `h`.
+
+For every leaf, we define its "imperfect" height to be the minimum `h` so that the height-`h` subtree containing the leaf is non-full/imperfect, i.e., the subtree has less than `Δ^h` leaves.
+E.g., a leaf itself is always perfect; a height-1 internal node is imperfect if and only if it has degree less than `Δ`, etc.
+An "optimal" leaf is a leaf with minimum "imperfect" height.
+The purpose of using an "optimal" leaf is to greedily minimize the number of recursions in `addSibling`.
 
 #### Variant: different borrow-or-merge strategies
 
@@ -456,7 +476,7 @@ We make the following particular choices of "tracing child":
 ### Decomposition of "New" Nodes for Reusing "Old" Nodes
 
 MLS has an optimization about reusing (the secrets at) "old" nodes.
-In tree data structures, we accordingly consider the following task: to find a decomposition (if any) of a "new" node into an "old" node along with a list of nodes existing in the current tree, so that their leaves disjointly split the leaves of the "new" node.
+In tree data structures, we accordingly consider the following task: to find a decomposition (if any) of a "new" node into an "old" node (probably no longer existing in the current tree) along with a list of nodes existing in the current tree, so that their leaves disjointly split the leaves of the "new" node.
 
 We figure out the following particular decomposition opportunities:
 - generic "lazy" `add`:
@@ -469,6 +489,7 @@ We figure out the following particular decomposition opportunities:
 - BT `removeSelf`:
   - decompose the merged `ps'` into `[ps,…p']`
 - LLRBT: induced by the isomorphism; in particular, if a BT node `t` has a decomposition `[t[1], …, t[m]]`, then the LLRBT node `iso(t)` would have a decomposition `[iso(t[1]), …, iso(t[m])]`
+  > There is one corner case where `iso(t[1])` is a child node of `iso(t)` (and, e.g., `m = 2` and `iso(t[2])` is the other child), and in this case we exclude the decomposition as `iso(t[1])`, though being an "old" node, is still existing in the current tree and moreover a direct child of the "new" node.
 
 MLS refers to the list of nodes after the "old" node in the decomposition as "unmerged leaves", and we can see that these nodes are indeed leaf nodes in the case of LBBT.
 However in general (e.g., see BT) these nodes do not need to be leaf nodes, and thus we refer to them as generally "unmerged nodes".
