@@ -331,6 +331,8 @@ const makeTreeKEM = (
 		usingUnmergedNodesForBlank = usingUnmergedNodes,
 		usingUnmergedNodesForSecret = usingUnmergedNodes,
 
+		usingOTP = false,
+
 		usingSKE = false,
 		usingSKEForPath = usingSKE,
 		usingSKEForLeaf = usingSKE,
@@ -577,7 +579,7 @@ for (const _ of function * () {
 				if (child === childTrace) {
 					continue;
 				}
-				yield * this.skeletonEnc(child, seed, leaf, path);
+				yield * this.skeletonEnc(child, seed, leaf, path, seedMap);
 			}
 
 			for (const leafOther of [ /* hint from `regionDec` */ ]) {
@@ -595,6 +597,7 @@ for (const _ of function * () {
 		assert(skeletonExtra.size === 0);
 
 		if (seedMap.has(root)) {
+			assert(seedMap.size === 1);
 			this.secret = seedMap.get(root);
 		} else {
 			assert(seedMap.size === 0);
@@ -603,11 +606,20 @@ for (const _ of function * () {
 		}
 	}
 
-	* skeletonEnc(root, seed, leaf, path) {
+	* skeletonEnc(root, seed, leaf, path, seedMap = null) {
 		if (skippingSparseNodes && root.isAllRemoved) {
 			return;
 		}
+		let seedRoot = null;
+		if (seedMap?.has(root)) {
+			seedRoot = seedMap.get(root);
+			seedMap.delete(root);
+		}
 		if (root === leaf) {
+			return;
+		}
+		if (usingOTP && seedRoot) {
+			yield this.crypto.OTP_Enc(seedRoot, seed);
 			return;
 		}
 		if (this.secrets.has(root)) {

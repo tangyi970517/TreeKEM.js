@@ -85,6 +85,7 @@ for (const depth of [0, 1])
 	const skippingSparseNodes = Boolean(randint(2));
 	const usingUnmergedNodesForBlank = Boolean(randint(2));
 	const usingUnmergedNodesForSecret = Boolean(randint(2));
+	const usingOTP = Boolean(randint(2));
 	const usingSKE = Boolean(randint(2));
 	const usingSKEForPath = Boolean(randint(2));
 	const usingSKEForLeaf = Boolean(randint(2));
@@ -93,6 +94,7 @@ flag-trace=${Number(aligningTrace)}
 flag-sparse=${Number(skippingSparseNodes)}
 flag-unmerged-blank=${Number(usingUnmergedNodesForBlank)}
 flag-unmerged-secret=${Number(usingUnmergedNodesForSecret)}
+flag-OTP=${Number(usingOTP)}
 flag-SKE=${Number(usingSKE)}
 flag-SKE-path=${Number(usingSKEForPath)}
 flag-SKE-leaf=${Number(usingSKEForLeaf)}
@@ -104,6 +106,7 @@ region-dec-depth=${depth}
 		skippingSparseNodes,
 		usingUnmergedNodesForBlank,
 		usingUnmergedNodesForSecret,
+		usingOTP,
 		usingSKE,
 		usingSKEForPath,
 		usingSKEForLeaf,

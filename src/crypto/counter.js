@@ -2,7 +2,7 @@ import {assert} from '../utils.js';
 
 class CounterCrypto {
 	constructor() {
-		this.counts = Object.fromEntries('random,PRG,Gen,Enc,Dec,SGen,SEnc,SDec'.split(',').map(key => [key, 0]));
+		this.counts = Object.fromEntries('random,PRG,Gen,Enc,Dec,SGen,SEnc,SDec,OTP,OTPInv'.split(',').map(key => [key, 0]));
 	}
 
 	get stat() {
@@ -51,6 +51,18 @@ class CounterCrypto {
 		assert(k === 'k');
 		assert(c === 'c_k');
 		++this.counts.SDec;
+		return null;
+	}
+
+	OTP_Enc(r, _m) {
+		assert(r === 'r');
+		++this.counts.OTP;
+		return 'c_r';
+	}
+	OTP_Dec(r, c) {
+		assert(r === 'r');
+		assert(c === 'c_r');
+		++this.counts.OTPInv;
 		return null;
 	}
 }
