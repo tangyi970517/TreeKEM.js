@@ -66,7 +66,7 @@ class ParentTree {
 		const infoParent = this.ancestors[0].info;
 		let info;
 		if (this.index > 0) {
-			const plus = this.index > 3 ? `+{${this.index}}` : Array(this.index).fill('+').join('');
+			const plus = this.index > 3 ? `+{${this.index}}` : '+'.repeat(this.index);
 			info = infoParent.concat([plus, 0]);
 		} else {
 			info = infoParent.with(-1, infoParent.at(-1) + 1);

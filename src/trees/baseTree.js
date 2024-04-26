@@ -199,8 +199,8 @@ class Tree extends ChildTree {
 		 */
 		const spread = Number(mid > 0) + 2 * Number(mid < this.children.length);
 		console.log([
-			...posListPrev.map(pos => ' │ '[pos] + Array(Width-1).fill(' ').join('')),
-			...posSelf.map(pos => '┌├└'[pos] + Array(Width-1).fill('─').join('')),
+			...posListPrev.map(pos => ' │ '[pos] + ' '.repeat(Width-1)),
+			...posSelf.map(pos => '┌├└'[pos] + '─'.repeat(Width-1)),
 			'╼┶┮┾'[spread],
 		].join(''), ...this.info.filter(s => (s ?? '') !== ''));
 		for (const [i, child] of this.children.slice(mid).entries()) {
