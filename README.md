@@ -475,7 +475,7 @@ We make the following particular choices of "tracing child":
 
 ### Decomposition of "New" Nodes for Reusing "Old" Nodes
 
-MLS has an optimization about reusing (the secrets at) "old" nodes.
+MLS has an optimization about reusing (the secrets at) "old" nodes (introduced at version 8).
 In tree data structures, we accordingly consider the following task: to find a decomposition (if any) of a "new" node into an "old" node (probably no longer existing in the current tree) along with a list of nodes existing in the current tree, so that their leaves disjointly split the leaves of the "new" node.
 
 We figure out the following particular decomposition opportunities:
@@ -560,6 +560,19 @@ Function `skeletonEnc(id, seed, v, c*)`:
     01. if `c` is non-blank, i.e., there is `pk` in `c` then `PKE.Enc(pk, seed)`
     01. if `c` is blank then `skeletonEnc(id, seed, c, null)`
         > Note that leaf nodes are always non-blank as they hold the long-term keys for the users. Hence the recursion always gets to an internal node.
+
+### Batching
+
+MLS supports batching operations via a "proposals and commits" mechanism (introduced at version 8).
+In particular, for each operation (add/remove/update), the user who issues the operation can choose to only announce a "proposal" describing the operation, without changing the state of the secret tree; a new "commit" operation is introduced, where the committing user collects a couple of proposals announced so far by different users and makes corresponding changes to the secret tree as a batch.
+
+To support "proposals and commits", we make the following changes:
+- In `add`/`remove`/`update`: instead of calling `skeletonGen`, just record skeleton `s`
+- Method `commit(id)`:
+  01. let `s` be the union of all recorded skeletons (while dropping "old" nodes that are no longer existing in the current tree)
+  01. `skeletonGen(id, t, s)`
+
+> Note that here the semantics of `add`/`remove`/`update` do not correspond to generating proposals in MLS; instead, they roughly mean "to process the operations indicated by all collected proposals in a commit operation", and `commit` roughly means "to finish the commit operation".
 
 ### Optimization: Reuse "Old" Secrets
 
@@ -664,3 +677,12 @@ They are either considered inefficient variants, or superseded by more general o
 - split strategy:
   - "blank": normal behavior (without the "unmerged nodes" optimization)
   - "keep": keep a "partial secret" at certain *grandparent* nodes when "splitting" nodes; superseded by the "unmerged nodes" optimization, with in particular the decomposition in BT `addSibling`
+
+## References
+
+- MLS: <https://messaginglayersecurity.rocks>
+  - MLS version 8: <https://datatracker.ietf.org/doc/draft-ietf-mls-protocol/08/>
+    ;
+    diff: <https://author-tools.ietf.org/iddiff?url1=draft-ietf-mls-protocol-07&url2=draft-ietf-mls-protocol-08&difftype=--html>
+- Tainted TreeKEM: <https://eprint.iacr.org/2019/1489>
+- Multicast Key Agreement: <https://eprint.iacr.org/2021/1570>
