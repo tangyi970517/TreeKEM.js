@@ -538,9 +538,11 @@ Function `skeletonGen(id, t, s)`:
     > As a corner case, if `s` is empty after dropping all leaf nodes, then one can just (refresh and broadcast by `skeletonEnc` the group secret and) return.
 01. let `r` be the path from the leaf for `id` to the root of `t`
 01. blank `s \ r`
-01. for each path `P[1], …, P[I]`, where `P[i] = (v[i,1], …, v[i,h[i]])` in `s ∩ r`:
+01. for each path `P[1], …, P[I]` in `s ∩ r`, where `P[i] = (v[i,1], …, v[i,h[i]])`:
     > The nodes in `P[i]` are listed bottom-up; also the paths themselves are sorted bottom-up.
+    >
     > Also, we remark that the path decomposition of the skeleton `s` naturally induces a path decomposition of any subset `s ∩ r`.
+    > (Here `r` is a path, so `s ∩ r` is a path as well and we actually could take the trivial path decomposition of it; we would have more complex `r` in general.)
     01. sample `seed[i,1]` uniformly at random
     01. for `j ∈ [h[i]]`:
         01. let `(seed[i,j+1], secret) := PRG(seed[i,j])`
@@ -566,7 +568,7 @@ Function `skeletonEnc(id, seed, v, c*)`:
 MLS supports batching operations via a "proposals and commits" mechanism (introduced at version 8).
 In particular, for each operation (add/remove/update), the user who issues the operation can choose to only announce a "proposal" describing the operation, without changing the state of the secret tree; a new "commit" operation is introduced, where the committing user collects a couple of proposals announced so far by different users and makes corresponding changes to the secret tree as a batch.
 
-To support "proposals and commits", we make the following changes:
+To support "proposals and commits", we make the following changes to the algorithms:
 - In `add`/`remove`/`update`: instead of calling `skeletonGen`, just record skeleton `s`
 - Method `commit(id)`:
   01. let `s` be the union of all recorded skeletons (while dropping "old" nodes that are no longer existing in the current tree)
@@ -623,6 +625,17 @@ The algorithms generalize as follows.
   - inherit the "tainting" users when copying secrets
 
 It can be verified that the above changes become no-op if additional secret region is always empty (i.e., if `regionEnc` and `regionDec` always return `false`).
+
+### Optimization: Use OTP instead of PKE when Possible
+
+It is possible (especially when the additional secret region is nonempty) to replace a couple of PKE encryptions by *one-time pads* (OTPs) in `skeletonEnc`, which helps improve efficiency.
+
+To enable OTP, we make the following changes to the algorithms:
+- In `skeletonEnc`:
+  - if `c` is the top of a path `P[i]` in `skeletonGen`, which means there is a generated but unused `seed[i,h[i]+1]` in `skeletonGen`, then `OTP.Enc(seed[i,h[i]+1], seed)` instead of `PKE.Enc(pk, seed)`
+
+> Following the OTP optimization, every tail value `seed[i,h[i]+1]` will be used (recall that previously only the topmost one `seed[I,h[I]+1]` is used, as the new group secret).
+> In this sense, it seems more natural for the algorithm to include the OTP optimization.
 
 ### Optimization: Use SKE instead of PKE when Possible
 
