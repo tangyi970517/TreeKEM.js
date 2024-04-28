@@ -325,18 +325,21 @@ In the implementation, we limit the possibilities by only considering whether hi
 ### (Left-leaning) Red-black Tree (LLRBT)
 
 Definition.
-An LLRBT is a tree satisfying all of the following:
+An RBT is a tree satisfying all of the following:
 - every node is "colored" either red or black, where the root and leaves are always black, and red nodes can only have black children;
 - every internal node has two children (i.e., binary and *full*);
 - every leaf has the same "black depth", defined as the number of black nodes on their path to the root.
+<!---->
+An LLRBT is an RBT satisfying the extra constraint that black nodes cannot have black left and red right children nodes.
+> I.e., red nodes are always "leaning to the left" inside the children of black nodes.
 
-We have the following equivalent definition for LLRBT that is  recursive and more explicit:
+We have the following equivalent definition for LLRBT which is recursive and more explicit:
 An LLRBT is a tree matching one of the following pattern:
 - a single (black) leaf node `()`;
 - a "black-black" node `(t1, t2)`, where `t1`, `t2` are LLRBTs with the same "black depth";
 - a "red-black" node `(R(t1, t2), t3)`, where `t1`, `t2`, `t3` are LLRBTs with the same "black depth";
   > Here `R(…)` marks a red node.
-  > Note that "left-leaning" in *LL*RBT refers to the fact that a "black-red" pattern is forbidden, so that red nodes are always "leaning to the left".
+  > Recall that "left-leaning" in *LL*RBT requires that a "black-red" pattern is forbidden.
 - a "red-red" node `(R(t1, t2), R(t3, t4))`, where `t1`, `t2`, `t3`, `t4` are LLRBTs with the same "black depth".
 
 > To remark, it might be more convenient to view colors as being associated with parent-child links instead of with nodes.
@@ -349,7 +352,8 @@ With the left-leaning property, red-black tree is *isomorphic* to 2-3-4 tree, vi
 01. if `(t1, t2, t3) := t` then return `(R(t1, t2), t3)`
 01. if `(t1, t2, t3, t4) := t` then return `(R(t1, t2), R(t3, t4))`
 
-Similarly, for the "2-3 mode" of LLRBT where the "red-red" pattern gets forbidden, it is easy to see that `iso` gives an isomorphism between the "2-3 mode" and 2-3 tree.
+We define the "2-3 mode" of LLRBT by further forbidding the "red-red" pattern (i.e., there are only "black-black" and "red-black" patterns).
+Similarly, it is easy to see that `iso` gives an isomorphism between "2-3 mode" LLRBT and 2-3 tree.
 
 With the isomorphism `iso` and its inverse `inv` (which is also easy to compute), the operations for LLRBT are immediately induced by the corresponding operations for 2-3-4 tree (and similarly "2-3 mode" operations are induced by 2-3 tree operations):
 - `init(n) := iso(234Tree.init(n))`;
